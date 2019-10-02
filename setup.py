@@ -8,7 +8,7 @@ setup(
     url='https://github.com/villebro/sqltask',
     author='Ville Brofeldt',
     author_email='villebro@apache.org',
-    packages=[find_packages()],
+    packages=find_packages(),
     install_requires=[
         'sqlalchemy',
         'sqlalchemy-utils',
