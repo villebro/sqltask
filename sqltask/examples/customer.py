@@ -1,25 +1,44 @@
 from datetime import date
 import os
 
+from sqlalchemy.schema import Column
+from sqlalchemy.types import Date, Float, String
 from sqltask import SqlTask, DqSource, DqSeverity
 from sqltask.exceptions import TooFewRowsException
-from sqltask.utils import create_engine
 
 
 class CustomerTask(SqlTask):
     @classmethod
     def init_schema(cls):
+
         # TODO: add example schema
         pass
 
-    batch_column_names = ["report_date"]
-    engine_specs = {
-        "source": create_engine(os.getenv("SQLTASK_SOURCE")),
-        "target": create_engine(os.getenv("SQLTASK_TARGET")),
+    batch_columns = [
+        Column('report_date', Date, comment="Snapshot date", primary_key=True),
+    ]
+
     }
 
     def __init__(self, report_date: date):
         super().__init__(report_date=report_date)
+        self.add_engine("source", os.getenv("SQLTASK_SOURCE"))
+        self.add_engine("target", os.getenv("SQLTASK_TARGET"))
+        columns = [
+            Column("customer_id",
+                   String,
+                   comment="Unique customer identifier",
+                   primary_key=True),
+            Column("birthdate",
+                   Date,
+                   comment="Birthdate of customer if defined and in the past"),
+            Column("age", Float,
+                   comment="Age of customer in years if birthdate defined"),
+            Column("sector_code",
+                   String,
+                   comment="Sector code of customer"),
+        ]
+        self.add_table("customer", columns, "target")
 
         self.add_source_query("main", """
             SELECT id,
@@ -47,11 +66,14 @@ class CustomerTask(SqlTask):
         for in_row in self.get_source_rows("main"):
             row = self.get_new_row()
 
+            # report_date
+            row["report_date"] = report_date
+
             # customer_id
             customer_id = in_row['id']
             row['customer_id'] = customer_id
 
-            # birthday
+            # birthdate
             birthdate = in_row['birthday']
             age = None
             if birthdate is None:

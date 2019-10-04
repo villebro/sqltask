@@ -13,39 +13,30 @@ from sqltask.engine_specs import engines
 from sqltask.exceptions import ExecutionArgumentException, MandatoryValueMissingException
 
 class SqlTask:
-    _main_table_name: Optional[str] = None
-    _engine_specs: Dict[Optional[str], EngineSpec] = {}
-    _table_specs: Dict[str, TableSpec] = {}
-    execution_columns: Optional[List[Column]] = None
 
     def __init__(self, **params):
+        self._main_table_name: Optional[str] = None
+        self._table_specs: Dict[str, TableSpec] = {}
+        self._engine_specs: Dict[Optional[str], EngineSpec] = {}
         self._queries: Dict[str, QuerySpec] = {}
         self._lookups: Dict[str, Dict[str, Any]] = {}
         self._lookup_queries: Dict[str, QuerySpec] = {}
         self.output_rows: Dict[str, List[Dict[str, Any]]] = {}
-        execution_column_names = [column.name for column in self.execution_columns]
-        for col in execution_column_names:
-            if col not in params:
-                raise ExecutionArgumentException(f"Execution argument undefined: `{col}`")
-        for arg in params:
-            if arg not in execution_column_names:
-                raise ExecutionArgumentException(f"Execution argument unsupported: `{arg}`")
+        self._batch_columns: List[Column] = []
+        self._batch_column_names: List[str] = []
         self.params: Dict[str, Any] = params
 
-    @classmethod
-    def init_engines(cls):
+    def init_engines(self):
         raise NotImplementedError("`init_engines` method must be implemented")
 
-    @classmethod
-    def init_schema(cls):
+    def init_schema(self):
         raise NotImplementedError("`init_schema` method must be implemented")
 
-    @classmethod
-    def _get_dq_table_name(cls) -> str:
+    def _get_dq_table_name(self) -> str:
         """
         Get data quality table name. Defaults to main table with `_dq` suffix.
         """
-        return cls._table_specs[cls._main_table_name].table.name + "_dq"
+        return self._table_specs[self._main_table_name].table.name + "_dq"
 
     def _get_output_rows(self, name: Optional[str]) -> List[Dict[str, Any]]:
         """
@@ -61,8 +52,7 @@ class SqlTask:
             self.output_rows[name] = output_rows
         return output_rows
 
-    @classmethod
-    def init_dq_schema(cls) -> None:
+    def init_dq_schema(self) -> None:
         """
         Initialize data quality table schema.
         """
@@ -73,19 +63,17 @@ class SqlTask:
             Column('severity', String, comment="Severity of issue", nullable=False),
             Column('message', String, comment="Verbose description of issue", nullable=False),
         ]
-        columns_execution = [column.copy() for column in cls.execution_columns]
-        columns = columns_default + columns_execution
-
-        table_name = cls._get_dq_table_name()
-        engine_spec = cls._get_engine_spec()
+        columns = columns_default + self._batch_columns
+        table_name = self._get_dq_table_name()
+        engine_spec = self._get_engine_spec()
+        clusterby = self._batch_column_names if self._batch_column_names else None
         table = Table(table_name, engine_spec.metadata, *columns,
                       comment="The data quality table",
-                      snowflake_clusterby=[col.name for col in columns_execution])
+                      snowflake_clusterby=clusterby)
         table_spec = TableSpec(engine_name=engine_spec.name, table=table)
-        cls._table_specs[table_name] = table_spec
+        self._table_specs[table_name] = table_spec
 
-    @classmethod
-    def transform(cls) -> None:
+    def transform(self) -> None:
         """
         Main transformation method where target rows should be generated.
         """
@@ -122,18 +110,17 @@ class SqlTask:
                        "message": message})
         self._get_output_rows(self._get_dq_table_name()).append(dq_row)
 
-    @classmethod
-    def _get_engine_spec(cls, engine_name: Optional[str] = None) -> EngineSpec:
+    def _get_engine_spec(self, engine_name: Optional[str] = None) -> EngineSpec:
         """
 
         :param engine_name:
         :return:
         """
         if engine_name is None:
-            table_spec = cls._table_specs[cls._main_table_name]
-            engine_spec = cls._get_engine_spec(table_spec.engine_name)
+            table_spec = self._table_specs[self._main_table_name]
+            engine_spec = self._get_engine_spec(table_spec.engine_name)
             engine_name = engine_spec.name
-        engine_spec = cls._engine_specs.get(engine_name)
+        engine_spec = self._engine_specs.get(engine_name)
         if engine_spec is None:
             raise Exception(f"Engine not created: `{engine_name or '<default>'}`")
         return engine_spec
@@ -253,8 +240,7 @@ class SqlTask:
             output_row[key] = value
         output_rows.append(output_row)
 
-    @classmethod
-    def add_engine(cls, name: str, url: str, **kwargs) -> None:
+    def add_engine(self, name: str, url: str, **kwargs) -> None:
         """
         Add a new engine to be used by sources, sinks and lookups.
 
@@ -264,30 +250,28 @@ class SqlTask:
         """
         engine = create_engine(url)
         metadata = MetaData(bind=engine, **kwargs)
-        cls._engine_specs[name] = EngineSpec(name, engine, metadata)
+        self._engine_specs[name] = EngineSpec(name, engine, metadata)
 
-    @classmethod
-    def add_table(cls, name: str, columns: List[Column], engine_name: str,
-                  **kwargs) -> None:
+    def add_table(self, name: str, columns: List[Column], engine_name: str,
+                  batch_column_names: Optional[List[str]] = None, **kwargs) -> None:
         """
         Add a table schema.
 
         :param name: Name of target table in database.
-        :param columns: Additional columns beyond default and execution columns.
+        :param columns: Additional columns beyond default and batch columns.
         :param engine_name: Name of engine to bind table to.
         :param kwargs: Additional parameters to pass to Table constructor
         """
-        engine_spec = cls._get_engine_spec(engine_name)
+        engine_spec = self._get_engine_spec(engine_name)
         columns_default = [
             Column("_rowid", String, comment="Built-in row id", nullable=False),
             Column("_tstamp", DateTime, comment="Timestamp when row was created", nullable=False),
         ]
-        columns_execution = [column.copy() for column in cls.execution_columns]
-        all_columns = columns_default + columns_execution + columns
+        all_columns = columns_default + columns
         table = Table(name, engine_spec.metadata, *all_columns, **kwargs)
-        cls._main_table_name = name
+        self._main_table_name = name
         table_spec = TableSpec(engine_name=engine_name, table=table)
-        cls._table_specs[name] = table_spec
+        self._table_specs[name] = table_spec
 
     def migrate_schemas(self) -> None:
         """
@@ -320,11 +304,11 @@ class SqlTask:
 
     def truncate_rows(self) -> None:
         """
-        Delete old rows from target table that match execution parameters.
+        Delete old rows from target table that match batch parameters.
         """
         for table_spec in self._table_specs.values():
             table = table_spec.table
-            where_clause = " AND ".join([f"{col.name} = :{col.name}" for col in self.execution_columns])
+            where_clause = " AND ".join([f"{col.name} = :{col.name}" for col in self.batch_columns])
             stmt = f"DELETE FROM {table.name} WHERE {where_clause}"
             table.bind.execute(text(stmt), self.params)
 
@@ -376,21 +360,22 @@ class SqlTask:
         row_target[column_target] = value
         return value
 
-    def execute(self):
-        print(1)
+    def execute_migration(self):
+        print("migration start: " + str(datetime.now()))
         self.init_engines()
-        print(2)
         self.init_schema()
-        print(3)
         self.init_dq_schema()
-        print(4)
         self.migrate_schemas()
-        print(5)
+        print("migration start: " + str(datetime.now()))
+
+    def execute_etl(self):
+        print("transform start: " + str(datetime.now()))
         self.transform()
-        print(6)
         self.validate()
-        print(7)
         self.truncate_rows()
-        print("8" + str(datetime.now()))
         self.insert_rows()
-        print("9" + str(datetime.now()))
+        print("transform end" + str(datetime.now()))
+
+    def execute(self):
+        self.execute_migration()
+        self.execute_etl()
