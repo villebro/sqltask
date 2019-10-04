@@ -2,7 +2,7 @@ from setuptools import find_packages, setup
 
 setup(
     name='sqltask',
-    version='0.0.4',
+    version='0.0.5',
     description='ETL tool for performing mostly SQL-based data transformation',
     long_description='',
     url='https://github.com/villebro/sqltask',
