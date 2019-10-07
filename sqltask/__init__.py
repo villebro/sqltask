@@ -8,23 +8,26 @@ from sqlalchemy.engine import create_engine, ResultProxy, RowProxy
 from sqlalchemy.schema import Column, MetaData, Table
 from sqlalchemy.sql import text
 from sqlalchemy.types import DateTime, String
-from sqltask.common import DqSeverity, DqSource, EngineSpec, TableSpec, QuerySpec
-from sqltask.engine_specs import engines
+from sqltask.common import DqSeverity, DqSource, EngineContext, TableContext, QueryContext
+from sqltask.engine_specs import get_engine_spec
 from sqltask.exceptions import ExecutionArgumentException, MandatoryValueMissingException
 
 class SqlTask:
+    def __init__(self, **batch_params):
+        """
+        Main class in library.
 
-    def __init__(self, **params):
-        self._main_table_name: Optional[str] = None
-        self._table_specs: Dict[str, TableSpec] = {}
-        self._engine_specs: Dict[Optional[str], EngineSpec] = {}
-        self._queries: Dict[str, QuerySpec] = {}
-        self._lookups: Dict[str, Dict[str, Any]] = {}
-        self._lookup_queries: Dict[str, QuerySpec] = {}
-        self.output_rows: Dict[str, List[Dict[str, Any]]] = {}
-        self._batch_columns: List[Column] = []
-        self._batch_column_names: List[str] = []
-        self.params: Dict[str, Any] = params
+        :param batch_params: Mapping from batch column name to value
+        """
+        self._tables: Dict[str, TableContext] = {}
+        self._dq_tables: Dict[str, TableContext] = {}
+        self._engines: Dict[str, EngineContext] = {}
+        self._lookup_queries: Dict[str, QueryContext] = {}
+        self._source_queries: Dict[str, QueryContext] = {}
+        self._lookup_cache: Dict[str, Dict[str, Any]] = {}
+        self._output_rows: Dict[str, List[Dict[str, Any]]] = {}
+        self._dq_output_rows: Dict[str, List[Dict[str, Any]]] = {}
+        self.batch_params: Dict[str, Any] = batch_params or {}
 
     def init_engines(self):
         raise NotImplementedError("`init_engines` method must be implemented")
@@ -32,46 +35,90 @@ class SqlTask:
     def init_schema(self):
         raise NotImplementedError("`init_schema` method must be implemented")
 
-    def _get_dq_table_name(self) -> str:
+    def add_engine(self,
+                   name: str,
+                   url: str,
+                   schema: Optional[str] = None,
+                   **kwargs) -> EngineContext:
         """
-        Get data quality table name. Defaults to main table with `_dq` suffix.
-        """
-        return self._table_specs[self._main_table_name].table.name + "_dq"
+        Add a new engine to be used by sources, sinks and lookups.
 
-    def _get_output_rows(self, name: Optional[str]) -> List[Dict[str, Any]]:
+        :param url: SqlAlchemy URL of engine.
+        :param name: alias by which the engine is referenced during during operations.
+        :param schema: Schema to use. If left unspecified, falls back to the schema
+        defined in the engine URL if supported
+        :param kwargs: additional parameters to be passed to metadata object.
+        :return: created engine context
         """
-        Get the output list for a specific table.
+        engine = create_engine(url)
+        metadata = MetaData(bind=engine, **kwargs)
+        engine_spec = get_engine_spec(engine.name)
+        schema = schema or engine_spec.get_schema_name(engine.url)
+        engine_context = EngineContext(engine, metadata, schema)
+        self._engines[name] = engine_context
+        return engine_context
 
-        :param name: name of table to output to. Defaults to main table if None.
-        :return: List of data quality rows
+    def add_table(self,
+                  name: str,
+                  engine_context: EngineContext,
+                  columns: List[Column],
+                  schema: Optional[str] = None,
+                  batch_params: Optional[Dict[str, Any]] = None,
+                  rowid_column_name: Optional[str] = None,
+                  timestamp_column_name: Optional[str] = None,
+                  dq_table_name: Optional[str] = None,
+                  dq_engine_context: Optional[EngineContext] = None,
+                  dq_schema: Optional[str] = None,
+                  **kwargs) -> TableContext:
         """
-        name = name if name else self._main_table_name
-        output_rows = self.output_rows.get(name)
-        if output_rows is None:
-            output_rows = []
-            self.output_rows[name] = output_rows
-        return output_rows
+        Add a table schema.
 
-    def init_dq_schema(self) -> None:
+        :param name: Name of target table in database.
+        :param engine_context: Name of engine to bind table to.
+        :param columns: Additional columns beyond default and batch columns.
+        :param schema: Schema to use. If left unspecified, falls back to the schema
+        provided by the engine context
+        :param batch_params: Mapping between column names and values that are used to
+        delete old rows in the table.
+        :param rowid_column_name: Name of column used for populating row id.
+        :param timestamp_column_name: Name of column used for populating etl timestamp.
+        :param dq_table_name: Name of data quality table. Defaults to original table
+        name + `_dq`
+        :param dq_engine_context: Engine context used for creating data quality table.
+        Defaults to `engine_context` if omitted
+        :param dq_schema: Schema used for creating data quality table. Defaults to
+        `schema` if left blank
+        :param kwargs: Additional parameters to pass to Table constructor
+        :return: created table context
         """
-        Initialize data quality table schema.
-        """
-        columns_default = [
-            Column('_rowid', String, comment="Built-in row id", nullable=False),
-            Column('_tstamp', DateTime, comment="Timestamp when row was created", nullable=False),
+        table = Table(name, engine_context.metadata, *columns, **kwargs)
+        schema = schema or engine_context.schema
+        table_context = TableContext(table, engine_context, batch_params,
+                                     rowid_column_name, timestamp_column_name, schema)
+        self._tables[name] = table_context
+
+        dq_table_name = dq_table_name or name + "_dq"
+        dq_engine_context = dq_engine_context or engine_context
+        dq_rowid_column_name = rowid_column_name or "_rowid"
+        dq_timestamp_column_name = timestamp_column_name or "_rowid"
+
+        column_dict = {column.name: column for column in columns}
+        batch_columns = [column for column in column_dict.values()]
+
+        dq_columns = batch_columns + [
+            Column(dq_rowid_column_name, String, comment="Built-in row id", nullable=False),
+            Column(dq_timestamp_column_name, DateTime, comment="Timestamp when row was created", nullable=False),
             Column('source', String, comment="Source of issue", nullable=False),
             Column('severity', String, comment="Severity of issue", nullable=False),
             Column('message', String, comment="Verbose description of issue", nullable=False),
         ]
-        columns = columns_default + self._batch_columns
-        table_name = self._get_dq_table_name()
-        engine_spec = self._get_engine_spec()
-        clusterby = self._batch_column_names if self._batch_column_names else None
-        table = Table(table_name, engine_spec.metadata, *columns,
-                      comment="The data quality table",
-                      snowflake_clusterby=clusterby)
-        table_spec = TableSpec(engine_name=engine_spec.name, table=table)
-        self._table_specs[table_name] = table_spec
+        dq_table = Table(dq_table_name, dq_engine_context, *dq_columns, **kwargs)
+        dq_schema = dq_schema or schema
+        dq_table_context = TableContext(dq_table, dq_engine_context, batch_params,
+                                        dq_rowid_column_name, dq_timestamp_column_name,
+                                        dq_schema)
+        self._dq_tables[name] = dq_table_context
+        return table_context
 
     def transform(self) -> None:
         """
@@ -103,27 +150,13 @@ class SqlTask:
         None for aggregate data quality issues.
         """
         dq_row = self.get_new_row()
+
         if row:
             dq_row["_rowid"] = row["_rowid"]
         dq_row.update({"source": str(source.value),
                        "severity": str(severity.value),
                        "message": message})
         self._get_output_rows(self._get_dq_table_name()).append(dq_row)
-
-    def _get_engine_spec(self, engine_name: Optional[str] = None) -> EngineSpec:
-        """
-
-        :param engine_name:
-        :return:
-        """
-        if engine_name is None:
-            table_spec = self._table_specs[self._main_table_name]
-            engine_spec = self._get_engine_spec(table_spec.engine_name)
-            engine_name = engine_spec.name
-        engine_spec = self._engine_specs.get(engine_name)
-        if engine_spec is None:
-            raise Exception(f"Engine not created: `{engine_name or '<default>'}`")
-        return engine_spec
 
     def get_new_row(self) -> Dict[str, Any]:
         """
@@ -141,7 +174,7 @@ class SqlTask:
 
     def add_source_query(self, name: str, sql: str,
                          params: Optional[Dict[str, Any]],
-                         engine_name: str) -> None:
+                         engine_context: EngineContext) -> QueryContext:
         """
         Add a query that can be iterated over with the `self.get_source_rows` method.
 
@@ -150,13 +183,16 @@ class SqlTask:
         `WHERE dt <= :batch_date`
         :param params: mapping between parameter keys and values, e.g.
         `{"batch_date": date(2010, 1, 1)}`
-        :param engine_name: name of engine used to execute the query
+        :param engine_context: engine context used to execute the query
+        :return: The generated query context instance
         """
-        self._queries[name] = QuerySpec(sql, params, engine_name)
+        query_context = QueryContext(sql, params, engine_context)
+        self._source_queries[name] = query_context
+        return query_context
 
     def add_lookup_query(self, name: str, sql: str,
                          params: Optional[Dict[str, Any]],
-                         engine_name: str) -> None:
+                         engine_context: EngineContext) -> QueryContext:
         """
         Add a query that can `self.get_lookup(name)` method. The results are not
         eagerly populated, but rather only once they are requested the first time
@@ -167,55 +203,11 @@ class SqlTask:
         `WHERE dt <= :batch_date`
         :param params: mapping between parameter keys and values, e.g.
         `{"batch_date": date(2010, 1, 1)}`
-        :param engine_name: name of engine used to execute the query
+        :param engine_context: engine context used to execute the query
         """
-        self._lookup_queries[name] = QuerySpec(sql, params, engine_name)
-
-    def get_source_rows(self, name: str) -> ResultProxy:
-        """
-        Get results for a predefined query.
-
-        :param name: name of query that has been added with the `self.add_source_query`
-        method.
-
-        :return: The result from `engine.execute()`
-        """
-        query_spec = self._queries.get(name)
-        engine = self._get_engine_spec(query_spec.engine_name)
-        return engine.engine.execute(text(query_spec.sql), query_spec.params)
-
-    def get_lookup(self, name: str) -> Dict[Any, Any]:
-        """
-        Get results for a predefined lookup query.
-
-        :param name: name of query that has been added with the `self.add_lookup_query`
-        method.
-
-        :return: Result
-        """
-        lookup = self._lookups.get(name)
-        if lookup is None:
-            query_spec = self._lookup_queries.get(name)
-            engine_spec = self._get_engine_spec(query_spec.engine_name)
-            rows = engine_spec.engine.execute(text(query_spec.sql), query_spec.params)
-            lookup = {}
-            for row in rows:
-                if len(row) < 2:
-                    raise Exception(f"Lookup `{name}` must contain at least 2 columns")
-                elif len(row) == 2:
-                    key, value = row[0], row[1]
-                else:
-                    key = row[0]
-                    value = []
-                    for col in row[1:]:
-                        value.append(col)
-                    value = tuple(value)
-                if key in lookup:
-                    self.log_dq(DqSource.LOOKUP, DqSeverity.MEDIUM,
-                                f"Duplicate key `{key}` in lookup `{name}`")
-                lookup[key] = value
-            self._lookups[name] = lookup
-        return lookup
+        query_context = QueryContext(sql, params, engine_context)
+        self._lookup_queries[name] = query_context
+        return query_context
 
     def add_row(self, row: Dict[str, Any], name: Optional[str] = None,
                 engine: Optional[str] = None) -> None:
@@ -240,38 +232,52 @@ class SqlTask:
             output_row[key] = value
         output_rows.append(output_row)
 
-    def add_engine(self, name: str, url: str, **kwargs) -> None:
+    def get_source_rows(self, name: str) -> ResultProxy:
         """
-        Add a new engine to be used by sources, sinks and lookups.
+        Get results for a predefined query.
 
-        :param url: SqlAlchemy URL of engine.
-        :param name: alias by which the engine is referenced during during operations.
-        :param kwargs: additional parameters to be passed to metadata object.
-        """
-        engine = create_engine(url)
-        metadata = MetaData(bind=engine, **kwargs)
-        self._engine_specs[name] = EngineSpec(name, engine, metadata)
+        :param name: name of query that has been added with the `self.add_source_query`
+        method.
 
-    def add_table(self, name: str, columns: List[Column], engine_name: str,
-                  batch_column_names: Optional[List[str]] = None, **kwargs) -> None:
+        :return: The result from `engine.execute()`
         """
-        Add a table schema.
+        query_context = self._source_queries.get(name)
+        engine = query_context.engine_context.engine
+        return engine.engine.execute(text(query_context.sql), query_context.params)
 
-        :param name: Name of target table in database.
-        :param columns: Additional columns beyond default and batch columns.
-        :param engine_name: Name of engine to bind table to.
-        :param kwargs: Additional parameters to pass to Table constructor
+    def get_lookup(self, name: str) -> Dict[Any, Any]:
         """
-        engine_spec = self._get_engine_spec(engine_name)
-        columns_default = [
-            Column("_rowid", String, comment="Built-in row id", nullable=False),
-            Column("_tstamp", DateTime, comment="Timestamp when row was created", nullable=False),
-        ]
-        all_columns = columns_default + columns
-        table = Table(name, engine_spec.metadata, *all_columns, **kwargs)
-        self._main_table_name = name
-        table_spec = TableSpec(engine_name=engine_name, table=table)
-        self._table_specs[name] = table_spec
+        Get results for a predefined lookup query. The results for are cached when the
+        method is called for the first time.
+
+        :param name: name of query that has been added with the `self.add_lookup_query`
+        method.
+
+        :return: Result
+        """
+        lookup = self._lookup_cache.get(name)
+        if lookup is None:
+            query_context = self._lookup_queries.get(name)
+            engine = query_context.engine_context.engine
+            rows = engine.execute(text(query_context.sql), query_context.params)
+            lookup = {}
+            for row in rows:
+                if len(row) < 2:
+                    raise Exception(f"Lookup `{name}` must contain at least 2 columns")
+                elif len(row) == 2:
+                    key, value = row[0], row[1]
+                else:
+                    key = row[0]
+                    value = []
+                    for col in row[1:]:
+                        value.append(col)
+                    value = tuple(value)
+                if key in lookup:
+                    self.log_dq(DqSource.LOOKUP, DqSeverity.MEDIUM,
+                                f"Duplicate key `{key}` in lookup `{name}`")
+                lookup[key] = value
+            self._lookup_cache[name] = lookup
+        return lookup
 
     def migrate_schemas(self) -> None:
         """

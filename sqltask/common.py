@@ -18,24 +18,22 @@ class DqSeverity(Enum):
     LOW = "low"
 
 
-class EngineSpec(NamedTuple):
-    name: str
+class EngineContext(NamedTuple):
     engine: Engine
     metadata: MetaData
-
-
-class TableSpec(NamedTuple):
-    engine_name: str
-    table: Table
-
-
-class TableIdentifier(NamedTuple):
-    table: Optional[str]
-    engine: Optional[str]
     schema: Optional[str]
 
 
-class QuerySpec(NamedTuple):
+class TableContext(NamedTuple):
+    table: Table
+    engine_context: EngineContext
+    batch_params: Optional[Dict[str, Any]]
+    rowid_column_name: Optional[str]
+    timestamp_column_name: Optional[str]
+    schema: Optional[str]
+
+
+class QueryContext(NamedTuple):
     sql: str
     params: Dict[str, Any]
-    engine_name: str
+    engine_context: EngineContext

@@ -1,9 +1,9 @@
 from sqlalchemy.engine import create_engine as sa_create_engine
 from sqlalchemy.schema import MetaData
-from sqltask import EngineSpec
+from sqltask import EngineContext
 
 
-def create_engine(url: str, **kwargs) -> EngineSpec:
+def create_engine(url: str, **kwargs) -> EngineContext:
     """
     Add a new engine to be used by sources, sinks and lookups.
 
@@ -13,4 +13,4 @@ def create_engine(url: str, **kwargs) -> EngineSpec:
     """
     engine = sa_create_engine(url)
     metadata = MetaData(bind=engine, **kwargs)
-    return EngineSpec('NONE', engine, metadata)
+    return EngineContext('NONE', engine, metadata)

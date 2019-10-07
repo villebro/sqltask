@@ -2,7 +2,7 @@ from datetime import date
 import os
 
 from sqlalchemy.schema import Column
-from sqlalchemy.types import Date, Float, String
+from sqlalchemy.types import Date, DateTime, Float, String
 from sqltask import SqlTask, DqSource, DqSeverity
 from sqltask.exceptions import TooFewRowsException
 
@@ -22,23 +22,23 @@ class CustomerTask(SqlTask):
 
     def __init__(self, report_date: date):
         super().__init__(report_date=report_date)
-        self.add_engine("source", os.getenv("SQLTASK_SOURCE"))
-        self.add_engine("target", os.getenv("SQLTASK_TARGET"))
+        source_engine = self.add_engine("source", os.getenv("SQLTASK_SOURCE"))
+        target_engine = self.add_engine("target", os.getenv("SQLTASK_TARGET"))
         columns = [
-            Column("customer_id",
-                   String,
-                   comment="Unique customer identifier",
-                   primary_key=True),
-            Column("birthdate",
-                   Date,
-                   comment="Birthdate of customer if defined and in the past"),
-            Column("age", Float,
-                   comment="Age of customer in years if birthdate defined"),
-            Column("sector_code",
-                   String,
-                   comment="Sector code of customer"),
+            Column("report_date", String, comment="Built-in row id", primary_key=True),
+            Column("etl_rowid", String, comment="Built-in row id", nullable=False),
+            Column("etl_timestamp", DateTime, comment="Timestamp when row was created", nullable=False),
+            Column("customer_id", String, comment="Unique customer identifier", primary_key=True),
+            Column("birthdate", Date, comment="Birthdate of customer if defined and in the past"),
+            Column("age", Float, comment="Age of customer in years if birthdate defined"),
+            Column("sector_code", String, comment="Sector code of customer"),
         ]
-        self.add_table("customer", columns, "target")
+        self.add_table("customer",
+                       target_engine,
+                       columns,
+                       rowid_column_name="etl_rowid",
+                       timestamp_column_name="etl_timestamp",
+                       )
 
         self.add_source_query("main", """
             SELECT id,

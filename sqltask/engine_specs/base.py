@@ -1,6 +1,7 @@
 from typing import Any, Dict, List, Optional
 
 from sqlalchemy import inspect
+from sqlalchemy.engine.url import URL
 from sqlalchemy.schema import Column, Table
 from sqlalchemy.sql import text
 
@@ -12,6 +13,7 @@ class BaseEngineSpec:
     engine: Optional[str] = None
     supports_column_comments = True
     supports_table_comments = True
+    supports_schemas = True
 
     @classmethod
     def insert_rows(cls, output_rows: List[Dict[str, Any]], output_spec: Table) -> None:
@@ -57,3 +59,17 @@ class BaseEngineSpec:
                     table.bind.execute(stmt)
         else:
             table.metadata.create_all(tables=[table])
+
+    @classmethod
+    def get_schema_name(cls, url: URL) -> Optional[str]:
+        """
+        Extract schema name from URL instance. Assumes that the schema name is what
+        cmes after a slash in the database name, e.g. `database/schema`.
+
+        :param url: SqlAlchemy URL instance
+        :return: schema name
+        """
+        schema = None
+        if cls.supports_schemas and "/" in url.database:
+            schema = url.database.split("/")[1]
+        return schema
