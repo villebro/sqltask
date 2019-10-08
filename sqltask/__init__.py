@@ -6,8 +6,8 @@ import sqlalchemy as sa
 from sqlalchemy.engine import create_engine, ResultProxy, RowProxy
 from sqlalchemy.schema import Column, MetaData, Table
 from sqlalchemy.sql import text
-from sqlalchemy.types import DateTime, String
-from sqltask.common import DqPriority, DqSource, EngineContext, OutputRow, TableContext, QueryContext
+from sqlalchemy.types import String
+from sqltask.common import DqPriority, DqSource, DqType, EngineContext, OutputRow, TableContext, QueryContext
 from sqltask.engine_specs import get_engine_spec
 from sqltask.exceptions import ExecutionArgumentException, MandatoryValueMissingException
 
@@ -100,14 +100,14 @@ class SqlTask:
         batch_columns = [column.copy() for column in column_dict.values() if column.name in batch_params]
         dq_columns = []
         if dq_rowid_column_name:
-            dq_columns.append(Column(dq_rowid_column_name, String, comment="Built-in row id", primary_key=True))
-        if dq_timestamp_column_name:
-            dq_columns.append(Column(dq_timestamp_column_name, DateTime, comment="Timestamp when row was created", nullable=False))
+            dq_columns.append(Column(dq_rowid_column_name, String, comment="Unique row id in target table"))
 
         dq_columns = batch_columns + dq_columns + [
-            Column('source', String, comment="Source of issue", nullable=False),
-            Column('priority', String, comment="Priority of issue", nullable=False),
-            Column('message', String, comment="Verbose description of issue", nullable=False),
+            Column("dq_rowid", String, comment="Unique row id", primary_key=True),
+            Column("source", String, comment="Source of issue"),
+            Column("priority", String, comment="Priority of issue"),
+            Column("dq_type", String, comment="Type of issue"),
+            Column("column_name", String, comment="Affected column in target table"),
         ]
         dq_table = Table(dq_table_name, dq_engine_context.metadata, *dq_columns, **kwargs)
         dq_schema = dq_schema or schema
@@ -159,7 +159,8 @@ class SqlTask:
     def log_dq(self,
                source: DqSource,
                priority: DqPriority,
-               message: Optional[str] = None,
+               dq_type: DqType,
+               column_name: Optional[str] = None,
                output_row: Optional[OutputRow] = None,
                table_context: Optional[TableContext] = None,
                ) -> None:
@@ -168,7 +169,8 @@ class SqlTask:
 
         :param source: To what phase the data quality issue relates.
         :param priority: What the priority of the data quality issue is.
-        :param message: Verbose message describing the data quality issue.
+        :param column_name: Name of affected column in target table.
+        :param dq_type: The type of data quality issue.
         :param output_row: Input row to which the data quality issue corresponds.
         Should be None for aggregate data quality issues.
         :param table_context: name of table context. Only necessary for non-row specific
@@ -181,20 +183,20 @@ class SqlTask:
 
         dq_table_context = self.get_dq_table_context(table_context.name)
 
+        # map through rowid from target column
         dq_output_row = self.get_new_row(dq_table_context.name, _dq_table=True)
         if output_row and output_row.table_context.rowid_column_name:
-            column_name = output_row.table_context.rowid_column_name
-            value = output_row.get(column_name)
-            dq_output_row[column_name] = value
+            output_column_name = output_row.table_context.rowid_column_name
+            value = output_row.get(output_column_name)
+            dq_output_row[output_column_name] = value
 
-        if output_row and output_row.table_context.timestamp_column_name:
-            column_name = output_row.table_context.timestamp_column_name
-            value = output_row.get(column_name)
-            dq_output_row[column_name] = value
-
-        dq_output_row.update({"source": str(source.value),
-                              "priority": str(priority.value),
-                              "message": message})
+        dq_output_row.update({
+            "dq_rowid": str(uuid4()),
+            "source": str(source.value),
+            "priority": str(priority.value),
+            "dq_type": str(dq_type.value),
+            "column_name": column_name,
+        })
 
         dq_row = {}
         for column in dq_table_context.table.columns:
@@ -317,9 +319,10 @@ class SqlTask:
                         value.append(col)
                     value = tuple(value)
                 if key in lookup:
-                    self.log_dq(DqSource.LOOKUP,
-                                DqPriority.MEDIUM,
-                                f"Duplicate key `{key}` in lookup `{name}`",
+                    self.log_dq(source=DqSource.LOOKUP,
+                                priority=DqPriority.MEDIUM,
+                                dq_type=DqType.DUPLICATE,
+                                column_name=None,
                                 table_context=query_context.table_context)
                 lookup[key] = value
             self._lookup_cache[name] = lookup
@@ -386,43 +389,55 @@ class SqlTask:
                 priority: DqPriority,
                 source_row: RowProxy,
                 output_row: OutputRow,
-                dq_function: Optional[Callable[[Any], bool]] = None) -> Any:
+                dq_function: Optional[Callable[[Any], Optional[DqType]]] = None) -> Any:
         """
         Perform a simple mapping from source to target. Returns the mapped value
 
         :param column_source: column name in source row.
         :param column_target: column name in target row.
-        :param priority:
-        :param source_row:
-        :param output_row:
-        :param dq_function:
+        :param priority: Priority of data. if the value is None and is classified as
+        `DqPriority.MANDATORY`, the method will raise an Exception.
+        :param source_row: The source row from which to map the source column value
+        :param output_row: The target row to map the column value.
+        :param dq_function: A function that receives the column value and returns None
+        if no data quality issue detected, otherwise a `DqType enum describing the type
+        of data quality issue.
         :return: The value in the source, i.e. `row_source[column_source]`
         """
         value = source_row[column_source]
         if value is None and priority == DqPriority.MANDATORY:
             raise MandatoryValueMissingException(f"Mandatory mapping from column `{column_source}` to `{column_target}` undefined")
         elif dq_function is not None:
-            if dq_function(value):
-                self.log_dq(DqSource.SOURCE, priority,
-                            f"Mapping from column `{column_source}` to `{column_target}` failed data quality check",
-                            output_row)
+            dq_type = dq_function(value)
+            if dq_type:
+                self.log_dq(source=DqSource.SOURCE,
+                            priority=priority,
+                            dq_type=dq_type,
+                            column_name=column_target,
+                            output_row=output_row)
         elif value is None:
-            self.log_dq(DqSource.SOURCE, priority, f"Mapping from column `{column_source}` to `{column_target}` undefined", output_row)
+            self.log_dq(source=DqSource.SOURCE,
+                        priority=priority,
+                        dq_type=DqType.MISSING,
+                        column_name=column_target,
+                        output_row=output_row)
         output_row[column_target] = value
         return value
 
     def execute_migration(self):
-        print("migration start: " + str(datetime.now()))
+        print("migrate start: " + str(datetime.now()))
         self.migrate_schemas()
-        print("migration start: " + str(datetime.now()))
 
     def execute_etl(self):
         print("transform start: " + str(datetime.now()))
         self.transform()
+        print("validate start: " + str(datetime.now()))
         self.validate()
+        print("truncate start: " + str(datetime.now()))
         self.truncate_rows()
+        print("insert start: " + str(datetime.now()))
         self.insert_rows()
-        print("transform end: " + str(datetime.now()))
+        print("finish: " + str(datetime.now()))
 
     def execute(self):
         self.execute_migration()

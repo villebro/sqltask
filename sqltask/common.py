@@ -19,6 +19,12 @@ class DqPriority(Enum):
     LOW = "low"
 
 
+class DqType(Enum):
+    MISSING = "missing"
+    INCORRECT = "incorrect"
+    DUPLICATE = "duplicate"
+
+
 class EngineContext(NamedTuple):
     name: str
     engine: Engine

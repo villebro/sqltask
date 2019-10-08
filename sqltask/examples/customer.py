@@ -3,7 +3,7 @@ import os
 
 from sqlalchemy.schema import Column
 from sqlalchemy.types import Date, DateTime, Float, String
-from sqltask import SqlTask, DqSource, DqPriority
+from sqltask import SqlTask, DqSource, DqPriority, DqType
 from sqltask.exceptions import TooFewRowsException
 
 
@@ -67,21 +67,39 @@ class CustomerTask(SqlTask):
             birthdate = datetime.strptime(birthday, "%Y-%m-%d").date() if birthday else None
             age = None
             if birthdate is None:
-                self.log_dq(DqSource.SOURCE, DqPriority.HIGH, "Missing birthdate", row)
+                self.log_dq(source=DqSource.SOURCE,
+                            priority=DqPriority.HIGH,
+                            dq_type=DqType.MISSING,
+                            column_name="birthdate",
+                            output_row=row)
             elif birthdate > report_date:
-                self.log_dq(DqSource.SOURCE, DqPriority.HIGH,
-                            f"birthdate in future: `{str(birthdate)}`", row)
+                self.log_dq(source=DqSource.SOURCE,
+                            priority=DqPriority.HIGH,
+                            dq_type=DqType.INCORRECT,
+                            column_name="birthdate",
+                            output_row=row)
                 birthdate = None
             else:
                 age = (report_date - birthdate).days / 365.25
             row["birthdate"] = birthdate
+
+            # age
+            if age is None:
+                self.log_dq(source=DqSource.TRANSFORM,
+                            priority=DqPriority.MEDIUM,
+                            dq_type=DqType.MISSING,
+                            column_name="age",
+                            output_row=row)
             row["age"] = age
 
             # sector_code
             sector_code = self.get_lookup("sector_code").get(customer_id)
             if sector_code is None:
-                self.log_dq(DqSource.SOURCE, DqPriority.MEDIUM,
-                            "Missing sector code", row)
+                self.log_dq(source=DqSource.SOURCE,
+                            priority=DqPriority.MEDIUM,
+                            dq_type=DqType.MISSING,
+                            column_name="sector_code",
+                            output_row=row)
             row["sector_code"] = sector_code
 
             self.add_row(row)
