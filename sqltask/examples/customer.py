@@ -1,25 +1,13 @@
-from datetime import date
+from datetime import date, datetime
 import os
 
 from sqlalchemy.schema import Column
 from sqlalchemy.types import Date, DateTime, Float, String
-from sqltask import SqlTask, DqSource, DqSeverity
+from sqltask import SqlTask, DqSource, DqPriority
 from sqltask.exceptions import TooFewRowsException
 
 
 class CustomerTask(SqlTask):
-    @classmethod
-    def init_schema(cls):
-
-        # TODO: add example schema
-        pass
-
-    batch_columns = [
-        Column('report_date', Date, comment="Snapshot date", primary_key=True),
-    ]
-
-    }
-
     def __init__(self, report_date: date):
         super().__init__(report_date=report_date)
         source_engine = self.add_engine("source", os.getenv("SQLTASK_SOURCE"))
@@ -33,38 +21,39 @@ class CustomerTask(SqlTask):
             Column("age", Float, comment="Age of customer in years if birthdate defined"),
             Column("sector_code", String, comment="Sector code of customer"),
         ]
-        self.add_table("customer",
-                       target_engine,
-                       columns,
-                       rowid_column_name="etl_rowid",
-                       timestamp_column_name="etl_timestamp",
-                       )
+        table = self.add_table("customer",
+                               target_engine,
+                               columns,
+                               rowid_column_name="etl_rowid",
+                               timestamp_column_name="etl_timestamp",
+                               batch_params={"report_date": report_date}
+                               )
 
         self.add_source_query("main", """
             SELECT id,
                    birthday,
                    1 as num
-            FROM (SELECT TO_DATE('2019-06-30') AS report_date, '1234567' AS id, TO_DATE('1980-01-01') AS birthday UNION ALL 
-                  SELECT TO_DATE('2019-06-30') AS report_date, '2345678' AS id, TO_DATE('2080-01-01') AS birthday UNION ALL 
-                  SELECT TO_DATE('2019-06-30') AS report_date, '3456789' AS id, NULL AS birthday)
+            FROM (SELECT DATE('2019-06-30') AS report_date, '1234567' AS id, DATE('1980-01-01') AS birthday UNION ALL 
+                  SELECT DATE('2019-06-30') AS report_date, '2345678' AS id, DATE('2080-01-01') AS birthday UNION ALL 
+                  SELECT DATE('2019-06-30') AS report_date, '3456789' AS id, NULL AS birthday)
             WHERE report_date = :report_date
-            """, {"report_date": report_date}, "source")
+            """, {"report_date": report_date}, source_engine)
 
         self.add_lookup_query("sector_code", """
             SELECT customer_id,
                    sector_code
-            FROM (SELECT TO_DATE('2019-06-30') AS execution_date, '1234567' AS customer_id, '111211' AS sector_code UNION ALL 
-                  SELECT TO_DATE('2019-06-30') AS execution_date, '2345678' AS customer_id, '143' AS sector_code UNION ALL 
-                  SELECT TO_DATE('2019-06-30') AS execution_date, '2345678' AS customer_id, '143' AS sector_code UNION ALL 
-                  SELECT TO_DATE('2019-06-30') AS execution_date, '3456789' AS customer_id, NULL AS sector_code 
+            FROM (SELECT DATE('2019-06-30') AS execution_date, '1234567' AS customer_id, '111211' AS sector_code UNION ALL 
+                  SELECT DATE('2019-06-30') AS execution_date, '2345678' AS customer_id, '143' AS sector_code UNION ALL 
+                  SELECT DATE('2019-06-30') AS execution_date, '2345678' AS customer_id, '143' AS sector_code UNION ALL 
+                  SELECT DATE('2019-06-30') AS execution_date, '3456789' AS customer_id, NULL AS sector_code 
             )
             WHERE execution_date = :report_date
-            """, {"report_date": report_date}, "source")
+            """, {"report_date": report_date}, table, source_engine)
 
     def transform(self) -> None:
-        report_date = self.params['report_date']
+        report_date = self.batch_params['report_date']
         for in_row in self.get_source_rows("main"):
-            row = self.get_new_row()
+            row = self.get_new_row("customer")
 
             # report_date
             row["report_date"] = report_date
@@ -74,12 +63,13 @@ class CustomerTask(SqlTask):
             row['customer_id'] = customer_id
 
             # birthdate
-            birthdate = in_row['birthday']
+            birthday = in_row['birthday']
+            birthdate = datetime.strptime(birthday, "%Y-%m-%d").date() if birthday else None
             age = None
             if birthdate is None:
-                self.log_dq(DqSource.SOURCE, DqSeverity.HIGH, "Missing birthdate", row)
+                self.log_dq(DqSource.SOURCE, DqPriority.HIGH, "Missing birthdate", row)
             elif birthdate > report_date:
-                self.log_dq(DqSource.SOURCE, DqSeverity.HIGH,
+                self.log_dq(DqSource.SOURCE, DqPriority.HIGH,
                             f"birthdate in future: `{str(birthdate)}`", row)
                 birthdate = None
             else:
@@ -90,14 +80,14 @@ class CustomerTask(SqlTask):
             # sector_code
             sector_code = self.get_lookup("sector_code").get(customer_id)
             if sector_code is None:
-                self.log_dq(DqSource.SOURCE, DqSeverity.MEDIUM,
+                self.log_dq(DqSource.SOURCE, DqPriority.MEDIUM,
                             "Missing sector code", row)
             row["sector_code"] = sector_code
 
             self.add_row(row)
 
         for i in range(0):
-            row = self.get_new_row()
+            row = self.get_new_row("customer")
             row["customer_id"] = 'abcd'
             row["birthdate"] = None
             row["age"] = None
@@ -105,7 +95,7 @@ class CustomerTask(SqlTask):
             self.add_row(row)
 
     def validate(self):
-        if len(self.output_rows) < 2:
+        if len(self._output_rows['customer']) < 2:
             raise TooFewRowsException("Less than 2 rows")
 
 

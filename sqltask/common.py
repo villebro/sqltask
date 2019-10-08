@@ -1,3 +1,4 @@
+from collections import UserDict
 from enum import Enum
 from typing import Any, Dict, NamedTuple, Optional
 
@@ -11,7 +12,7 @@ class DqSource(Enum):
     LOOKUP = "lookup"
 
 
-class DqSeverity(Enum):
+class DqPriority(Enum):
     MANDATORY = "mandatory"
     HIGH = "high"
     MEDIUM = "medium"
@@ -19,12 +20,14 @@ class DqSeverity(Enum):
 
 
 class EngineContext(NamedTuple):
+    name: str
     engine: Engine
     metadata: MetaData
     schema: Optional[str]
 
 
 class TableContext(NamedTuple):
+    name: str
     table: Table
     engine_context: EngineContext
     batch_params: Optional[Dict[str, Any]]
@@ -36,4 +39,11 @@ class TableContext(NamedTuple):
 class QueryContext(NamedTuple):
     sql: str
     params: Dict[str, Any]
+    table_context: Optional[TableContext]
     engine_context: EngineContext
+
+
+class OutputRow(UserDict):
+    def __init__(self, table_context: TableContext):
+        super().__init__(table_context.batch_params)
+        self.table_context = table_context
