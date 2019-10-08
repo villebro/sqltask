@@ -182,6 +182,16 @@ class SqlTask:
         dq_table_context = self.get_dq_table_context(table_context.name)
 
         dq_output_row = self.get_new_row(dq_table_context.name, _dq_table=True)
+        if output_row and output_row.table_context.rowid_column_name:
+            column_name = output_row.table_context.rowid_column_name
+            value = output_row.get(column_name)
+            dq_output_row[column_name] = value
+
+        if output_row and output_row.table_context.timestamp_column_name:
+            column_name = output_row.table_context.timestamp_column_name
+            value = output_row.get(column_name)
+            dq_output_row[column_name] = value
+
         dq_output_row.update({"source": str(source.value),
                               "priority": str(priority.value),
                               "message": message})
@@ -392,8 +402,10 @@ class SqlTask:
         if value is None and priority == DqPriority.MANDATORY:
             raise MandatoryValueMissingException(f"Mandatory mapping from column `{column_source}` to `{column_target}` undefined")
         elif dq_function is not None:
-            # TODO: add dq functionality
-            pass
+            if dq_function(value):
+                self.log_dq(DqSource.SOURCE, priority,
+                            f"Mapping from column `{column_source}` to `{column_target}` failed data quality check",
+                            output_row)
         elif value is None:
             self.log_dq(DqSource.SOURCE, priority, f"Mapping from column `{column_source}` to `{column_target}` undefined", output_row)
         output_row[column_target] = value
