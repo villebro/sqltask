@@ -1,4 +1,6 @@
 from datetime import datetime
+import logging
+import os
 from typing import Any, Callable, Dict, List, Optional
 from uuid import uuid4
 
@@ -10,6 +12,25 @@ from sqlalchemy.types import String
 from sqltask.common import DqPriority, DqSource, DqType, EngineContext, OutputRow, TableContext, QueryContext
 from sqltask.engine_specs import get_engine_spec
 from sqltask.exceptions import ExecutionArgumentException, MandatoryValueMissingException
+
+# initialize logging
+log = logging.getLogger('sqltask')
+log_level_mapping = {
+    "CRITICAL": logging.CRITICAL,
+    "ERROR": logging.ERROR,
+    "WARNING": logging.WARNING,
+    "INFO": logging.INFO,
+    "DEBUG": logging.DEBUG,
+}
+log_level = log_level_mapping.get(os.getenv("SQLTASK_LOG_LEVEL"))
+if log_level:
+    log.setLevel(log_level)
+
+ch = logging.StreamHandler()
+ch.setFormatter(
+    logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s"))
+log.addHandler(ch)
+
 
 class SqlTask:
     def __init__(self, **batch_params):
@@ -49,6 +70,7 @@ class SqlTask:
         schema = schema or engine_spec.get_schema_name(engine.url)
         engine_context = EngineContext(name, engine, metadata, schema)
         self._engines[name] = engine_context
+        log.debug(f"Added new engine `{name}` on schema `{schema}`")
         return engine_context
 
     def add_table(self,
@@ -300,6 +322,7 @@ class SqlTask:
 
         :return: The result from `engine.execute()`
         """
+        log.debug(f"Retrieving source query `{name}`")
         query_context = self._source_queries.get(name)
         engine = query_context.engine_context.engine
         return engine.engine.execute(text(query_context.sql), query_context.params)
@@ -316,6 +339,7 @@ class SqlTask:
         """
         lookup = self._lookup_cache.get(name)
         if lookup is None:
+            log.debug(f"Caching lookup `{name}`")
             query_context = self._lookup_queries.get(name)
             engine = query_context.engine_context.engine
             rows = engine.execute(text(query_context.sql), query_context.params)
@@ -359,6 +383,7 @@ class SqlTask:
 
         # create new tables
         for table in tables_missing:
+            log.debug(f"Create new table `{table.name}`")
             table.metadata.create_all(tables=[table])
 
         # alter existing tables
@@ -367,7 +392,7 @@ class SqlTask:
             cols_existing = [col['name'] for col in inspector.get_columns(table.name)]
             for column in table.columns:
                 if column.name not in cols_existing:
-                    print(f'{column.name} is missing')
+                    log.debug(f"Add column `{column.name}` to table `{table.name}`")
                     stmt = f'ALTER TABLE {table.name} ADD COLUMN {column.name} {str(column.type)}'
                     table.bind.execute(stmt)
 
@@ -444,19 +469,19 @@ class SqlTask:
         return value
 
     def execute_migration(self):
-        print("migrate start: " + str(datetime.now()))
+        log.debug("Start schema migrate")
         self.migrate_schemas()
 
     def execute_etl(self):
-        print("transform start: " + str(datetime.now()))
+        log.debug(f"Start transform")
         self.transform()
-        print("validate start: " + str(datetime.now()))
+        log.debug(f"Start validate")
         self.validate()
-        print("truncate start: " + str(datetime.now()))
+        log.debug(f"Start truncate")
         self.truncate_rows()
-        print("insert start: " + str(datetime.now()))
+        log.debug(f"Start insert")
         self.insert_rows()
-        print("finish: " + str(datetime.now()))
+        log.debug(f"Finish etl")
 
     def execute(self):
         self.execute_migration()

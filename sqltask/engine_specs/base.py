@@ -1,9 +1,12 @@
+import logging
 from typing import Any, Dict, List, Optional
 
 from sqlalchemy import inspect
 from sqlalchemy.engine.url import URL
 from sqlalchemy.schema import Column, Table
 from sqlalchemy.sql import text
+
+log = logging.getLogger('sqltask')
 
 
 class BaseEngineSpec:
@@ -54,7 +57,8 @@ class BaseEngineSpec:
             cols_existing = [col['name'] for col in inspector.get_columns(table.name)]
             for column in table.columns:
                 if column.name not in cols_existing:
-                    print(f'{column.name} is missing')
+                    log.info(f'Adding `{column.name}` with type `{column.type}` to `{table.name}`')
+                    print()
                     stmt = f'ALTER TABLE {table.name} ADD COLUMN {column.name} {str(column.type)}'
                     table.bind.execute(stmt)
         else:
