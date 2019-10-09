@@ -57,7 +57,7 @@ class SqlTask:
                   columns: List[Column],
                   schema: Optional[str] = None,
                   batch_params: Optional[Dict[str, Any]] = None,
-                  rowid_column_name: Optional[str] = None,
+                  info_column_names: Optional[List[str]] = None,
                   timestamp_column_name: Optional[str] = None,
                   dq_table_name: Optional[str] = None,
                   dq_engine_context: Optional[EngineContext] = None,
@@ -73,7 +73,8 @@ class SqlTask:
         provided by the engine context
         :param batch_params: Mapping between column names and values that are used to
         delete old rows in the table.
-        :param rowid_column_name: Name of column used for populating row id.
+        :param info_column_names: Name of columns to be appended to the data quality
+        table for informational purposes that aren't primary keys, e.g. customer name.
         :param timestamp_column_name: Name of column used for populating etl timestamp.
         :param dq_table_name: Name of data quality table. Defaults to original table
         name + `_dq`
@@ -87,23 +88,37 @@ class SqlTask:
         table = Table(name, engine_context.metadata, *columns, **kwargs)
         schema = schema or engine_context.schema
         table_context = TableContext(name, table, engine_context, batch_params,
-                                     rowid_column_name, timestamp_column_name, schema)
+                                     info_column_names, timestamp_column_name, schema)
         self._tables[name] = table_context
         self._output_rows[name] = []
 
         # Initialize data quality table
         dq_table_name = dq_table_name or name + "_dq"
         dq_engine_context = dq_engine_context or engine_context
-        dq_rowid_column_name = rowid_column_name or "etl_rowid"
         dq_timestamp_column_name = timestamp_column_name or "etl_timestamp"
-        column_dict = {column.name: column for column in columns}
-        batch_columns = [column.copy() for column in column_dict.values() if column.name in batch_params]
-        dq_columns = []
-        if dq_rowid_column_name:
-            dq_columns.append(Column(dq_rowid_column_name, String, comment="Unique row id in target table"))
+        info_column_names = info_column_names or []
 
-        dq_columns = batch_columns + dq_columns + [
-            Column("dq_rowid", String, comment="Unique row id", primary_key=True),
+        # primary key columns
+        batch_columns = []
+        primary_key_columns = []
+        info_columns = []
+
+        for column in columns:
+            # make copy of column and remove primary keys as one row might
+            # have several data quality issues. Also make nullable, as data quality
+            # issues don't necessarily relate to a specific column in the target table
+            column_copy = column.copy()
+            column_copy.primary_key = False
+            column_copy.nullable = True
+            if column.name in batch_params:
+                batch_columns.append(column_copy)
+            elif column.primary_key:
+                primary_key_columns.append(column_copy)
+            elif column.name in info_column_names:
+                info_columns.append(column_copy)
+
+        dq_columns = batch_columns + primary_key_columns + info_columns + [
+            Column("dq_rowid", String, comment="Unique row id"),
             Column("source", String, comment="Source of issue"),
             Column("priority", String, comment="Priority of issue"),
             Column("dq_type", String, comment="Type of issue"),
@@ -112,7 +127,7 @@ class SqlTask:
         dq_table = Table(dq_table_name, dq_engine_context.metadata, *dq_columns, **kwargs)
         dq_schema = dq_schema or schema
         dq_table_context = TableContext(name, dq_table, dq_engine_context,
-                                        batch_params, dq_rowid_column_name,
+                                        batch_params, info_column_names,
                                         dq_timestamp_column_name, dq_schema)
         self._dq_tables[name] = dq_table_context
         self._dq_output_rows[name] = []
@@ -183,12 +198,7 @@ class SqlTask:
 
         dq_table_context = self.get_dq_table_context(table_context.name)
 
-        # map through rowid from target column
         dq_output_row = self.get_new_row(dq_table_context.name, _dq_table=True)
-        if output_row and output_row.table_context.rowid_column_name:
-            output_column_name = output_row.table_context.rowid_column_name
-            value = output_row.get(output_column_name)
-            dq_output_row[output_column_name] = value
 
         dq_output_row.update({
             "dq_rowid": str(uuid4()),
@@ -197,10 +207,15 @@ class SqlTask:
             "dq_type": str(dq_type.value),
             "column_name": column_name,
         })
-
         dq_row = {}
         for column in dq_table_context.table.columns:
-            if column.name not in dq_output_row:
+            if output_row is None and column.name not in dq_output_row:
+                # E.g. lookups don't have an output_row, and hence no specifc column
+                dq_output_row[column.name] = None
+            elif output_row is not None and column.name not in dq_output_row and \
+                    column.name in output_row:
+                dq_output_row[column.name] = output_row[column.name]
+            elif column.name not in dq_output_row:
                 raise Exception(f"No column `{column.name}` in output row for table `{dq_output_row.table_context.table.name}`")
             dq_row[column.name] = dq_output_row[column.name]
         self._dq_output_rows[dq_table_context.name].append(dq_row)
@@ -218,8 +233,6 @@ class SqlTask:
         else:
             table_context = self.get_table_context(table_name)
         output_row = OutputRow(table_context)
-        if table_context.rowid_column_name:
-            output_row[table_context.rowid_column_name] = str(uuid4())
         if table_context.timestamp_column_name:
             output_row[table_context.timestamp_column_name] = datetime.utcnow()
         return output_row
@@ -385,10 +398,13 @@ class SqlTask:
             engine_spec = get_engine_spec(table_context.engine_context.engine.name)
             engine_spec.insert_rows(output_rows, table)
 
-    def map_row(self, column_source: str, column_target: str,
+    def map_row(self,
+                column_source: str,
+                column_target: str,
                 priority: DqPriority,
-                source_row: RowProxy,
-                output_row: OutputRow,
+                row_source: RowProxy,
+                row_target: OutputRow,
+                default_value: Any = None,
                 dq_function: Optional[Callable[[Any], Optional[DqType]]] = None) -> Any:
         """
         Perform a simple mapping from source to target. Returns the mapped value
@@ -397,14 +413,16 @@ class SqlTask:
         :param column_target: column name in target row.
         :param priority: Priority of data. if the value is None and is classified as
         `DqPriority.MANDATORY`, the method will raise an Exception.
-        :param source_row: The source row from which to map the source column value
-        :param output_row: The target row to map the column value.
+        :param row_source: The source row from which to map the source column value
+        :param row_target: The target row to map the column value.
+        :param default_value: The default value to assign to the column if the source
+        row has a `None` value.
         :param dq_function: A function that receives the column value and returns None
-        if no data quality issue detected, otherwise a `DqType enum describing the type
+        if no data quality issue detected, otherwise a `DqType` enum describing the type
         of data quality issue.
         :return: The value in the source, i.e. `row_source[column_source]`
         """
-        value = source_row[column_source]
+        value = row_source[column_source]
         if value is None and priority == DqPriority.MANDATORY:
             raise MandatoryValueMissingException(f"Mandatory mapping from column `{column_source}` to `{column_target}` undefined")
         elif dq_function is not None:
@@ -414,14 +432,15 @@ class SqlTask:
                             priority=priority,
                             dq_type=dq_type,
                             column_name=column_target,
-                            output_row=output_row)
+                            output_row=row_target)
         elif value is None:
             self.log_dq(source=DqSource.SOURCE,
                         priority=priority,
                         dq_type=DqType.MISSING,
                         column_name=column_target,
-                        output_row=output_row)
-        output_row[column_target] = value
+                        output_row=row_target)
+        value = value if value is not None else default_value
+        row_target[column_target] = value
         return value
 
     def execute_migration(self):

@@ -1,6 +1,6 @@
 from collections import UserDict
 from enum import Enum
-from typing import Any, Dict, NamedTuple, Optional
+from typing import Any, Dict, List, NamedTuple, Optional
 
 from sqlalchemy.engine import Engine
 from sqlalchemy.schema import MetaData, Table
@@ -37,7 +37,7 @@ class TableContext(NamedTuple):
     table: Table
     engine_context: EngineContext
     batch_params: Optional[Dict[str, Any]]
-    rowid_column_name: Optional[str]
+    info_column_names: Optional[List[str]]
     timestamp_column_name: Optional[str]
     schema: Optional[str]
 

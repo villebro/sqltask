@@ -14,7 +14,6 @@ class CustomerTask(SqlTask):
         target_engine = self.add_engine("target", os.getenv("SQLTASK_TARGET"))
         columns = [
             Column("report_date", String, comment="Built-in row id", primary_key=True),
-            Column("etl_rowid", String, comment="Built-in row id", nullable=False),
             Column("etl_timestamp", DateTime, comment="Timestamp when row was created", nullable=False),
             Column("customer_id", String, comment="Unique customer identifier", primary_key=True),
             Column("birthdate", Date, comment="Birthdate of customer if defined and in the past"),
@@ -22,9 +21,8 @@ class CustomerTask(SqlTask):
             Column("sector_code", String, comment="Sector code of customer"),
         ]
         table = self.add_table("customer",
-                               target_engine,
-                               columns,
-                               rowid_column_name="etl_rowid",
+                               engine_context=target_engine,
+                               columns=columns,
                                timestamp_column_name="etl_timestamp",
                                batch_params={"report_date": report_date}
                                )
@@ -33,8 +31,9 @@ class CustomerTask(SqlTask):
             SELECT id,
                    birthday,
                    1 as num
-            FROM (SELECT DATE('2019-06-30') AS report_date, '1234567' AS id, DATE('1980-01-01') AS birthday UNION ALL 
-                  SELECT DATE('2019-06-30') AS report_date, '2345678' AS id, DATE('2080-01-01') AS birthday UNION ALL 
+            FROM (SELECT DATE('2019-06-30') AS report_date, '1234567' AS id, '1980-01-01' AS birthday UNION ALL 
+                  SELECT DATE('2019-06-30') AS report_date, '2345678' AS id, '2080-01-01' AS birthday UNION ALL 
+                  SELECT DATE('2019-06-30') AS report_date, '2245678' AS id, '1980-13-01' AS birthday UNION ALL 
                   SELECT DATE('2019-06-30') AS report_date, '3456789' AS id, NULL AS birthday)
             WHERE report_date = :report_date
             """, {"report_date": report_date}, source_engine)
@@ -64,23 +63,32 @@ class CustomerTask(SqlTask):
 
             # birthdate
             birthday = in_row['birthday']
-            birthdate = datetime.strptime(birthday, "%Y-%m-%d").date() if birthday else None
-            age = None
-            if birthdate is None:
-                self.log_dq(source=DqSource.SOURCE,
-                            priority=DqPriority.HIGH,
-                            dq_type=DqType.MISSING,
-                            column_name="birthdate",
-                            output_row=row)
-            elif birthdate > report_date:
+            try:
+                birthdate = datetime.strptime(birthday, "%Y-%m-%d").date() if birthday else None
+                age = None
+                if birthdate is None:
+                    self.log_dq(source=DqSource.SOURCE,
+                                priority=DqPriority.HIGH,
+                                dq_type=DqType.MISSING,
+                                column_name="birthdate",
+                                output_row=row)
+                elif birthdate > report_date:
+                    self.log_dq(source=DqSource.SOURCE,
+                                priority=DqPriority.HIGH,
+                                dq_type=DqType.INCORRECT,
+                                column_name="birthdate",
+                                output_row=row)
+                    birthdate = None
+                else:
+                    age = (report_date - birthdate).days / 365.25
+            except ValueError:
+                # parse error
                 self.log_dq(source=DqSource.SOURCE,
                             priority=DqPriority.HIGH,
                             dq_type=DqType.INCORRECT,
                             column_name="birthdate",
                             output_row=row)
                 birthdate = None
-            else:
-                age = (report_date - birthdate).days / 365.25
             row["birthdate"] = birthdate
 
             # age
