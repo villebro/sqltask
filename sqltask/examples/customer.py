@@ -10,8 +10,11 @@ from sqltask.exceptions import TooFewRowsException
 class CustomerTask(SqlTask):
     def __init__(self, report_date: date):
         super().__init__(report_date=report_date)
-        source_engine = self.add_engine("source", os.getenv("SQLTASK_SOURCE"))
-        target_engine = self.add_engine("target", os.getenv("SQLTASK_TARGET"))
+        source_url = os.getenv("SQLTASK_SOURCE", "sqlite:///source.db")
+        target_url = os.getenv("SQLTASK_SOURCE", "sqlite:///target.db")
+        source_engine = self.add_engine("source", source_url)
+        target_engine = self.add_engine("target", target_url)
+
         columns = [
             Column("report_date", String, comment="Built-in row id", primary_key=True),
             Column("etl_timestamp", DateTime, comment="Timestamp when row was created", nullable=False),

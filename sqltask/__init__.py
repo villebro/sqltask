@@ -15,14 +15,7 @@ from sqltask.exceptions import ExecutionArgumentException, MandatoryValueMissing
 
 # initialize logging
 log = logging.getLogger('sqltask')
-log_level_mapping = {
-    "CRITICAL": logging.CRITICAL,
-    "ERROR": logging.ERROR,
-    "WARNING": logging.WARNING,
-    "INFO": logging.INFO,
-    "DEBUG": logging.DEBUG,
-}
-log_level = log_level_mapping.get(os.getenv("SQLTASK_LOG_LEVEL"))
+log_level = os.getenv("SQLTASK_LOG_LEVEL")
 if log_level:
     log.setLevel(log_level)
 
@@ -68,9 +61,9 @@ class SqlTask:
         metadata = MetaData(bind=engine, **kwargs)
         engine_spec = get_engine_spec(engine.name)
         schema = schema or engine_spec.get_schema_name(engine.url)
-        engine_context = EngineContext(name, engine, metadata, schema)
+        engine_context = EngineContext(name, engine, engine_spec, metadata, schema)
         self._engines[name] = engine_context
-        log.debug(f"Added new engine `{name}` on schema `{schema}`")
+        log.debug(f"Added new engine `{name}` using `{engine_spec.__name__}` on schema `{schema}`")
         return engine_context
 
     def add_table(self,
@@ -119,6 +112,7 @@ class SqlTask:
         dq_engine_context = dq_engine_context or engine_context
         dq_timestamp_column_name = timestamp_column_name or "etl_timestamp"
         info_column_names = info_column_names or []
+        batch_params = batch_params or {}
 
         # primary key columns
         batch_columns = []
@@ -273,6 +267,7 @@ class SqlTask:
         :param engine_context: engine context used to execute the query
         :return: The generated query context instance
         """
+        params = params or {}
         query_context = QueryContext(sql, params, None, engine_context)
         self._source_queries[name] = query_context
         return query_context
@@ -295,6 +290,7 @@ class SqlTask:
         :param engine_context: engine context used to execute the query
         :return: The generated query context instance
         """
+        params = params or {}
         query_context = QueryContext(sql, params, table_context, engine_context)
         self._lookup_queries[name] = query_context
         return query_context
@@ -313,6 +309,24 @@ class SqlTask:
             output_row[column.name] = row[column.name]
         self._output_rows[row.table_context.name].append(output_row)
 
+    def _get_source_query(self, name: str) -> QueryContext:
+        """
+        Retrieve a source query context. Raises exception if query context is not found
+        """
+        query_context = self._source_queries.get(name)
+        if query_context is None:
+            raise Exception(f"No source query defined: `{name}`")
+        return query_context
+
+    def _get_lookup_query(self, name: str) -> QueryContext:
+        """
+        Retrieve a lookup query context. Raises exception if query context is not found
+        """
+        query_context = self._lookup_queries.get(name)
+        if query_context is None:
+            raise Exception(f"No lookup query defined: `{name}`")
+        return query_context
+
     def get_source_rows(self, name: str) -> ResultProxy:
         """
         Get results for a predefined query.
@@ -323,9 +337,9 @@ class SqlTask:
         :return: The result from `engine.execute()`
         """
         log.debug(f"Retrieving source query `{name}`")
-        query_context = self._source_queries.get(name)
+        query_context = self._get_source_query(name)
         engine = query_context.engine_context.engine
-        return engine.engine.execute(text(query_context.sql), query_context.params)
+        return engine.execute(text(query_context.sql), query_context.params)
 
     def get_lookup(self, name: str) -> Dict[Any, Any]:
         """
@@ -340,7 +354,7 @@ class SqlTask:
         lookup = self._lookup_cache.get(name)
         if lookup is None:
             log.debug(f"Caching lookup `{name}`")
-            query_context = self._lookup_queries.get(name)
+            query_context = self._get_lookup_query(name)
             engine = query_context.engine_context.engine
             rows = engine.execute(text(query_context.sql), query_context.params)
             lookup = {}
@@ -414,13 +428,13 @@ class SqlTask:
         for table_context in self._tables.values():
             output_rows = self._output_rows[table_context.name]
             table = table_context.table
-            engine_spec = get_engine_spec(table_context.engine_context.engine.name)
+            engine_spec = table_context.engine_context.engine_spec
             engine_spec.insert_rows(output_rows, table)
 
         for name, table_context in self._dq_tables.items():
             output_rows = self._dq_output_rows[table_context.name]
             table = table_context.table
-            engine_spec = get_engine_spec(table_context.engine_context.engine.name)
+            engine_spec = table_context.engine_context.engine_spec
             engine_spec.insert_rows(output_rows, table)
 
     def map_row(self,

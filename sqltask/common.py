@@ -1,10 +1,10 @@
 from collections import UserDict
 from enum import Enum
-from typing import Any, Dict, List, NamedTuple, Optional
+from typing import Any, Dict, List, NamedTuple, Optional, Type
 
 from sqlalchemy.engine import Engine
 from sqlalchemy.schema import MetaData, Table
-
+from sqltask.engine_specs.base import BaseEngineSpec
 
 class DqSource(Enum):
     SOURCE = "source"
@@ -28,6 +28,7 @@ class DqType(Enum):
 class EngineContext(NamedTuple):
     name: str
     engine: Engine
+    engine_spec: Type[BaseEngineSpec]
     metadata: MetaData
     schema: Optional[str]
 

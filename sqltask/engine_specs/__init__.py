@@ -22,7 +22,7 @@ for (_, name, _) in pkgutil.iter_modules([Path(__file__).parent]):  # type: igno
             _engines[attribute.engine] = attribute
 
 
-def get_engine_spec(engine_name: Optional[str]) -> Type[BaseEngineSpec]:
+def get_engine_spec(engine_name: str) -> Type[BaseEngineSpec]:
     """
     Get an engine spec based on an engine name, e.g. snowflake.
 
@@ -30,4 +30,4 @@ def get_engine_spec(engine_name: Optional[str]) -> Type[BaseEngineSpec]:
     :return: Engine spec for a given engine name. Returns `BaseEngineSpec`
     if engine does not have a dedicated spec available.
     """
-    return _engines[engine_name if engine_name in _engines else None]
+    return _engines.get(engine_name, BaseEngineSpec)
