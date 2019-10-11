@@ -25,5 +25,6 @@ setup(
     ],
     extras_require={
         "snowflake": ["snowflake-sqlalchemy>=1.1.14"],
+        "postgres": ["psycopg2>=2.8.3"],
     },
 )

@@ -3,7 +3,7 @@ import os
 from typing import Dict, List
 
 from sqlalchemy.schema import Column
-from sqlalchemy.types import Date, DateTime, Float, String
+from sqlalchemy.types import Date, DateTime, Integer, String
 from sqltask import SqlTask, DqSource, DqPriority, DqType
 from sqltask.exceptions import TooFewRowsException
 
@@ -12,24 +12,25 @@ class CustomerTask(SqlTask):
     def __init__(self, report_date: date):
         super().__init__(report_date=report_date)
         source_url = os.getenv("SQLTASK_SOURCE", "sqlite:///source.db")
-        target_url = os.getenv("SQLTASK_SOURCE", "sqlite:///target.db")
+        target_url = os.getenv("SQLTASK_TARGET", "sqlite:///target.db")
         source_engine = self.add_engine("source", source_url)
         target_engine = self.add_engine("target", target_url)
 
-        columns = [
-            Column("report_date", String, comment="Built-in row id", primary_key=True),
-            Column("etl_timestamp", DateTime, comment="Timestamp when row was created", nullable=False),
-            Column("customer_id", String, comment="Unique customer identifier", primary_key=True),
-            Column("birthdate", Date, comment="Birthdate of customer if defined and in the past"),
-            Column("age", Float, comment="Age of customer in years if birthdate defined"),
-            Column("sector_code", String, comment="Sector code of customer"),
-        ]
-        table = self.add_table("customer",
-                               engine_context=target_engine,
-                               columns=columns,
-                               timestamp_column_name="etl_timestamp",
-                               batch_params={"report_date": report_date}
-                               )
+        table = self.add_table(
+            "customer",
+            engine_context=target_engine,
+            columns=[
+                Column("report_date", Date, comment="Built-in row id", primary_key=True),
+                Column("etl_timestamp", DateTime, comment="Timestamp when row was created", nullable=False),
+                Column("customer_id", String, comment="Unique customer identifier", primary_key=True),
+                Column("birthdate", Date, comment="Birthdate of customer if defined and in the past"),
+                Column("age", Integer, comment="Age of customer in years if birthdate defined"),
+                Column("sector_code", String, comment="Sector code of customer"),
+            ],
+            comment="The customer table",
+            timestamp_column_name="etl_timestamp",
+            batch_params={"report_date": report_date},
+        )
 
         self.add_source_query("main", """
             SELECT id,
@@ -117,9 +118,9 @@ class CustomerTask(SqlTask):
 
             self.add_row(row)
 
-        for i in range(0):
+        for i in range(100):
             row = self.get_new_row("customer")
-            row["customer_id"] = 'abcd'
+            row["customer_id"] = 'a' + str(i)
             row["birthdate"] = None
             row["age"] = None
             row["sector_code"] = None

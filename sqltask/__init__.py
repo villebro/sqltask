@@ -72,6 +72,7 @@ class SqlTask:
                   name: str,
                   engine_context: EngineContext,
                   columns: List[Column],
+                  comment: Optional[str] = None,
                   schema: Optional[str] = None,
                   batch_params: Optional[Dict[str, Any]] = None,
                   info_column_names: Optional[List[str]] = None,
@@ -85,7 +86,8 @@ class SqlTask:
 
         :param name: Name of target table in database.
         :param engine_context: Name of engine to bind table to.
-        :param columns: Additional columns beyond default and batch columns.
+        :param columns: All columns in table.
+        :param comment: Table comment.
         :param schema: Schema to use. If left unspecified, falls back to the schema
         provided by the engine context
         :param batch_params: Mapping between column names and values that are used to
@@ -102,7 +104,7 @@ class SqlTask:
         :param kwargs: Additional parameters to pass to Table constructor
         :return: created table context
         """
-        table = Table(name, engine_context.metadata, *columns, **kwargs)
+        table = Table(name, engine_context.metadata, comment=comment, *columns, **kwargs)
         schema = schema or engine_context.schema
         table_context = TableContext(name, table, engine_context, batch_params,
                                      info_column_names, timestamp_column_name, schema)

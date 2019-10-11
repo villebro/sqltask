@@ -8,15 +8,18 @@ from sqltask.engine_specs.base import BaseEngineSpec
 from sqltask.common import TableContext
 
 
-class SnowflakeEngineSpec(BaseEngineSpec):
-    engine = "snowflake"
+class PostgresEngineSpec(BaseEngineSpec):
+    engine = 'postgres'
+    supports_column_comments = True
+    supports_table_comments = True
+    supports_schemas = True
 
     @classmethod
     def insert_rows(cls, output_rows: List[Dict[str, Any]],
                     table_context: TableContext) -> None:
         """
-        Snowflake bulk loading is done by exporting the data to CSV and using the
-        PUT + COPY statement to upload the data.
+        Postgres bulk loading is done by exporting the data to CSV and using the
+        cursor `copy_from` method.
 
         :param output_rows: rows to upload
         :param table_context: the target table to upload into
@@ -37,9 +40,10 @@ class SnowflakeEngineSpec(BaseEngineSpec):
             writer = csv.writer(csv_file, delimiter="\t")
             writer.writerows(csv_rows)
 
+        columns = [column.name for column in table_context.table.columns]
+
         with engine.connect() as conn:
-            conn.execute(f"CREATE OR REPLACE TEMPORARY STAGE {table.name}")
-            conn.execute(f"PUT FILE://{file_path} @{table.name}")
-            conn.execute(f"COPY INTO {table.name} FROM @{table.name} FILE_FORMAT = (TYPE = 'CSV' FIELD_DELIMITER = '\t' SKIP_HEADER = 0 EMPTY_FIELD_AS_NULL = TRUE COMPRESSION = GZIP) FORCE = TRUE")
+            cursor = conn.cursor()
+            cursor.copy_from(csv_file, table_context.table, columns=columns)
             os.remove(f"{file_path}")
         csv_file.close()
