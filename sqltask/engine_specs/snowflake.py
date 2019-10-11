@@ -34,7 +34,7 @@ class SnowflakeEngineSpec(BaseEngineSpec):
         epoch = str(datetime.utcnow().timestamp())
         file_path = f"{tempfile.gettempdir()}/{table.name}_{epoch}.csv"
 
-        with open(file_path, 'w', encoding="utf-8") as csv_file:
+        with open(file_path, 'w', encoding="utf-8", newline='') as csv_file:
             writer = csv.writer(csv_file, delimiter="\t")
             writer.writerows(csv_rows)
 
