@@ -1,7 +1,7 @@
 from datetime import datetime
 import logging
 import os
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union, Set
 from uuid import uuid4
 
 import sqlalchemy as sa
@@ -37,7 +37,9 @@ class SqlTask:
         self._engines: Dict[str, EngineContext] = {}
         self._lookup_queries: Dict[str, QueryContext] = {}
         self._source_queries: Dict[str, QueryContext] = {}
-        self._lookup_cache: Dict[str, Dict[str, Any]] = {}
+        self._lookup_cache: Dict[str, Union[Set[Union[Any, Tuple[Any, ...]]],
+                                            Dict[Union[Any, Tuple[Any, ...]],
+                                                 Union[Any, Dict[str, Any]]]]] = {}
         self._output_rows: Dict[str, List[Dict[str, Any]]] = {}
         self._dq_output_rows: Dict[str, List[Dict[str, Any]]] = {}
         self.batch_params: Dict[str, Any] = batch_params or {}
@@ -341,41 +343,78 @@ class SqlTask:
         engine = query_context.engine_context.engine
         return engine.execute(text(query_context.sql), query_context.params)
 
-    def get_lookup(self, name: str) -> Dict[Any, Any]:
+    def get_lookup(self,
+                   name: str,
+                   keys: int = 1) -> Union[Set[Union[Any, Tuple[Any, ...]]],
+                                           Dict[Union[Any, Tuple[Any, ...]],
+                                                Union[Any, Dict[str, Any]]]]:
         """
         Get results for a predefined lookup query. The results for are cached when the
         method is called for the first time.
 
         :param name: name of query that has been added with the `self.add_lookup_query`
         method.
+        :param keys: number of values in the lookup key. If the number of columns
+        returned by the query equals `keys`, the lookup will be a set. However, if the
+        number of columns returned by the query is greater than `keys`, the lookup will be
+        a dict. If the number of columns is one greater than `keys`, the value of the dict
+        will be `Any`. If the number of columns is two or greater than `keys`, the value of
+        the dict will be a dict where the keys are the column names of the value columns,
+        and the values are their respective values.
 
-        :return: Result
+        :return: A lookup, which can be a single or
         """
+
         lookup = self._lookup_cache.get(name)
         if lookup is None:
             log.debug(f"Caching lookup `{name}`")
+            row_count, duplicate_count = 0, 0
             query_context = self._get_lookup_query(name)
             engine = query_context.engine_context.engine
             rows = engine.execute(text(query_context.sql), query_context.params)
-            lookup = {}
+            column_names = [column[0] for column in rows.cursor.description]
+            cursor = rows.cursor
+            if keys < 1:
+                raise Exception(f"A minimum of 1 key is needed for a lookup")
+            elif len(column_names) < keys:
+                raise Exception(f"Too few columns in lookup `name`: {len(cursor.description)} found, expected at least {keys}")
+            elif len(column_names) == keys:
+                log.debug(f"Creating set-based lookup `{name}`")
+                lookup = set()
+            else:
+                log.debug(f"Creating dict-based lookup `{name}`")
+                lookup = {}
+
             for row in rows:
-                if len(row) < 2:
-                    raise Exception(f"Lookup `{name}` must contain at least 2 columns")
-                elif len(row) == 2:
-                    key, value = row[0], row[1]
+                row_count += 1
+                if isinstance(lookup, set):
+                    # set-based lookup (only key)
+                    if len(row) == 1:
+                        # single key where key is `Any`
+                        lookup.add(row[0])
+                    else:
+                        # multi-key where key is `Tuple[..., Any]`
+                        lookup.add(tuple([value for value in row]))
                 else:
-                    key = row[0]
-                    value = []
-                    for col in row[1:]:
-                        value.append(col)
-                    value = tuple(value)
-                if key in lookup:
-                    self.log_dq(source=DqSource.LOOKUP,
-                                priority=DqPriority.MEDIUM,
-                                dq_type=DqType.DUPLICATE,
-                                column_name=None,
-                                table_context=query_context.table_context)
-                lookup[key] = value
+                    # regular key-value lookup
+                    if keys == 1:
+                        key = row[0]
+                    else:
+                        key = tuple([row[i] for i in range(keys)])
+
+                    if len(column_names) == keys + 1:
+                        value = row[keys]
+                    else:
+                        value = {column_names[i]: row[i]
+                                 for i in range(keys, len(column_names))}
+                    if key in lookup:
+                        duplicate_count += 1
+                    else:
+                        lookup[key] = value
+
+            if duplicate_count > 0:
+                log.warning(f"Query result for lookup `{name}` has {duplicate_count} duplicate keys, ignoring duplicate rows")
+            log.info(f"Finished populating lookup `{name}` with {len(lookup)} rows")
             self._lookup_cache[name] = lookup
         return lookup
 
@@ -384,31 +423,35 @@ class SqlTask:
         Migrate all table schemas to target engines. Create new tables if missing,
         add missing columns if table exists but not all columns present.
         """
-        tables_existing: List[Table] = []
-        tables_missing: List[Table] = []
+        tables_existing: List[TableContext] = []
+        tables_missing: List[TableContext] = []
         all_tables = list(self._tables.values()) + list(self._dq_tables.values())
 
         for table_context in all_tables:
+            engine = table_context.engine_context.engine
             table = table_context.table
-            if table.bind.has_table(table.name):
-                tables_existing.append(table)
+            if engine.has_table(table.name, schema=table_context.schema):
+                tables_existing.append(table_context)
             else:
-                tables_missing.append(table)
+                tables_missing.append(table_context)
 
         # create new tables
-        for table in tables_missing:
+        for table_context in tables_missing:
+            table = table_context.table
             log.debug(f"Create new table `{table.name}`")
-            table.metadata.create_all(tables=[table])
+            table_context.engine_context.metadata.create_all(tables=[table])
 
         # alter existing tables
-        for table in tables_existing:
-            inspector = sa.inspect(table.bind)
+        for table_context in tables_existing:
+            table = table_context.table
+            engine = table_context.engine_context.engine
+            inspector = sa.inspect(engine)
             cols_existing = [col['name'] for col in inspector.get_columns(table.name)]
             for column in table.columns:
                 if column.name not in cols_existing:
                     log.debug(f"Add column `{column.name}` to table `{table.name}`")
                     stmt = f'ALTER TABLE {table.name} ADD COLUMN {column.name} {str(column.type)}'
-                    table.bind.execute(stmt)
+                    engine.execute(stmt)
 
     def truncate_rows(self) -> None:
         """
@@ -416,10 +459,8 @@ class SqlTask:
         """
         table_contexts = list(self._tables.values()) + list(self._dq_tables.values())
         for table_context in table_contexts:
-            table = table_context.table
-            where_clause = " AND ".join([f"{col} = :{col}" for col in self.batch_params.keys()])
-            stmt = f"DELETE FROM {table.name} WHERE {where_clause}"
-            table.bind.execute(text(stmt), self.batch_params)
+            table_context.engine_context.engine_spec.truncate_rows(
+                table_context, self.batch_params)
 
     def insert_rows(self) -> None:
         """
@@ -427,15 +468,13 @@ class SqlTask:
         """
         for table_context in self._tables.values():
             output_rows = self._output_rows[table_context.name]
-            table = table_context.table
             engine_spec = table_context.engine_context.engine_spec
-            engine_spec.insert_rows(output_rows, table)
+            engine_spec.insert_rows(output_rows, table_context)
 
         for name, table_context in self._dq_tables.items():
             output_rows = self._dq_output_rows[table_context.name]
-            table = table_context.table
             engine_spec = table_context.engine_context.engine_spec
-            engine_spec.insert_rows(output_rows, table)
+            engine_spec.insert_rows(output_rows, table_context)
 
     def map_row(self,
                 column_source: str,

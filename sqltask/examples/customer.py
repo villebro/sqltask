@@ -1,5 +1,6 @@
 from datetime import date, datetime
 import os
+from typing import Dict, List
 
 from sqlalchemy.schema import Column
 from sqlalchemy.types import Date, DateTime, Float, String
@@ -66,6 +67,7 @@ class CustomerTask(SqlTask):
 
             # birthdate
             birthday = in_row['birthday']
+            age = None
             try:
                 birthdate = datetime.strptime(birthday, "%Y-%m-%d").date() if birthday else None
                 age = None
