@@ -34,6 +34,7 @@ class PostgresEngineSpec(BaseEngineSpec):
                 with open(file_path, 'r', encoding="utf-8", newline='') as csv_file:
                     cursor.copy_from(csv_file, table_context.table.name, columns=columns, null="")
                     csv_file.close()
+                    conn.connection.commit()
         finally:
             os.remove(f"{file_path}")
 #

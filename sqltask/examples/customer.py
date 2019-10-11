@@ -17,7 +17,7 @@ class CustomerTask(SqlTask):
         target_engine = self.add_engine("target", target_url)
 
         table = self.add_table(
-            "customer",
+            name="customer",
             engine_context=target_engine,
             columns=[
                 Column("report_date", Date, comment="Built-in row id", primary_key=True),
@@ -32,7 +32,9 @@ class CustomerTask(SqlTask):
             batch_params={"report_date": report_date},
         )
 
-        self.add_source_query("main", """
+        self.add_source_query(
+            name="main",
+            sql="""
             SELECT id,
                    birthday,
                    1 as num
@@ -41,9 +43,14 @@ class CustomerTask(SqlTask):
                   SELECT DATE('2019-06-30') AS report_date, '2245678' AS id, '1980-13-01' AS birthday UNION ALL 
                   SELECT DATE('2019-06-30') AS report_date, '3456789' AS id, NULL AS birthday)
             WHERE report_date = :report_date
-            """, {"report_date": report_date}, source_engine)
+            """,
+            params={"report_date": report_date},
+            engine_context=source_engine,
+        )
 
-        self.add_lookup_query("sector_code", """
+        self.add_lookup_query(
+            name="sector_code",
+            sql="""
             SELECT customer_id,
                    sector_code
             FROM (SELECT DATE('2019-06-30') AS execution_date, '1234567' AS customer_id, '111211' AS sector_code UNION ALL 
@@ -52,15 +59,16 @@ class CustomerTask(SqlTask):
                   SELECT DATE('2019-06-30') AS execution_date, '3456789' AS customer_id, NULL AS sector_code 
             )
             WHERE execution_date = :report_date
-            """, {"report_date": report_date}, table, source_engine)
+            """,
+            params={"report_date": report_date},
+            table_context=table,
+            engine_context=source_engine,
+        )
 
     def transform(self) -> None:
         report_date = self.batch_params['report_date']
         for in_row in self.get_source_rows("main"):
             row = self.get_new_row("customer")
-
-            # report_date
-            row["report_date"] = report_date
 
             # customer_id
             customer_id = in_row['id']
