@@ -6,6 +6,7 @@ from typing import Any, Dict, List
 
 from sqltask.engine_specs.base import BaseEngineSpec
 from sqltask.common import TableContext
+from sqltask.utils.engine_specs import create_tmp_csv
 
 
 class SnowflakeEngineSpec(BaseEngineSpec):
@@ -21,25 +22,14 @@ class SnowflakeEngineSpec(BaseEngineSpec):
         :param output_rows: rows to upload
         :param table_context: the target table to upload into
         """
-        csv_rows = []
+        file_path = create_tmp_csv(table_context, output_rows)
         table = table_context.table
         engine = table_context.engine_context.engine
-        for row in output_rows:
-            csv_row = []
-            for column in table.columns:
-                csv_row.append(row[column.name])
-            csv_rows.append(csv_row)
 
-        epoch = str(datetime.utcnow().timestamp())
-        file_path = f"{tempfile.gettempdir()}/{table.name}_{epoch}.csv"
-
-        with open(file_path, 'w', encoding="utf-8", newline='') as csv_file:
-            writer = csv.writer(csv_file, delimiter="\t")
-            writer.writerows(csv_rows)
-
-        with engine.connect() as conn:
-            conn.execute(f"CREATE OR REPLACE TEMPORARY STAGE {table.name}")
-            conn.execute(f"PUT FILE://{file_path} @{table.name}")
-            conn.execute(f"COPY INTO {table.name} FROM @{table.name} FILE_FORMAT = (TYPE = 'CSV' FIELD_DELIMITER = '\t' SKIP_HEADER = 0 EMPTY_FIELD_AS_NULL = TRUE COMPRESSION = GZIP) FORCE = TRUE")
+        try:
+            with engine.connect() as conn:
+                conn.execute(f"CREATE OR REPLACE TEMPORARY STAGE {table.name}")
+                conn.execute(f"PUT FILE://{file_path} @{table.name}")
+                conn.execute(f"COPY INTO {table.name} FROM @{table.name} FILE_FORMAT = (TYPE = 'CSV' FIELD_DELIMITER = '\t' SKIP_HEADER = 0 EMPTY_FIELD_AS_NULL = TRUE COMPRESSION = GZIP) FORCE = TRUE")
+        finally:
             os.remove(f"{file_path}")
-        csv_file.close()

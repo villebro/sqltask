@@ -86,7 +86,7 @@ class CustomerTask(SqlTask):
                                 output_row=row)
                     birthdate = None
                 else:
-                    age = (report_date - birthdate).days / 365.25
+                    age = int((report_date - birthdate).days / 365.25)
             except ValueError:
                 # parse error
                 self.log_dq(source=DqSource.SOURCE,

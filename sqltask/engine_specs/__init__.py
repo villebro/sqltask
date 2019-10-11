@@ -2,7 +2,7 @@ from importlib import import_module
 import inspect
 from pathlib import Path
 import pkgutil
-from typing import Dict, Optional, Type
+from typing import Dict, Type
 
 from sqltask.engine_specs.base import BaseEngineSpec
 
