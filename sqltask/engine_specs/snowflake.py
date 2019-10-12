@@ -1,20 +1,18 @@
-import csv
-from datetime import datetime
 import os
-import tempfile
 from typing import Any, Dict, List
 
-from sqltask.engine_specs.base import BaseEngineSpec
+from sqltask.engine_specs.base import BaseEngineSpec, UploadType
 from sqltask.common import TableContext
 from sqltask.utils.engine_specs import create_tmp_csv
 
 
 class SnowflakeEngineSpec(BaseEngineSpec):
     engine = "snowflake"
+    default_upload_type = UploadType.CSV
 
     @classmethod
-    def insert_rows(cls, output_rows: List[Dict[str, Any]],
-                    table_context: TableContext) -> None:
+    def _insert_rows_csv(cls, output_rows: List[Dict[str, Any]],
+                         table_context: TableContext) -> None:
         """
         Snowflake bulk loading is done by exporting the data to CSV and using the
         PUT + COPY statement to upload the data.

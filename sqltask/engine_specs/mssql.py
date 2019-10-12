@@ -6,8 +6,8 @@ from sqltask.common import TableContext
 from sqltask.utils.engine_specs import create_tmp_csv
 
 
-class PostgresEngineSpec(BaseEngineSpec):
-    engine = 'postgresql'
+class MssqlEngineSpec(BaseEngineSpec):
+    engine = 'mssql'
     default_upload_type = UploadType.CSV
     supports_column_comments = True
     supports_table_comments = True
@@ -17,7 +17,7 @@ class PostgresEngineSpec(BaseEngineSpec):
     def _insert_rows_csv(cls, output_rows: List[Dict[str, Any]],
                          table_context: TableContext) -> None:
         """
-        Postgres bulk loading is done by exporting the data to CSV and using the
+        MSSQL bulk loading is done by exporting the data to CSV and using the
         cursor `copy_from` method.
 
         :param output_rows: rows to upload
@@ -33,11 +33,9 @@ class PostgresEngineSpec(BaseEngineSpec):
             with engine.connect() as conn:
                 cursor = conn.connection.cursor()
                 with open(file_path, 'r', encoding="utf-8", newline='') as csv_file:
-                    cursor.copy_from(file=csv_file,
-                                     table=table_context.table.name,
-                                     columns=columns,
-                                     null="")
+                    cursor.copy_from(csv_file, table_context.table.name, columns=columns, null="")
                     csv_file.close()
                     conn.connection.commit()
         finally:
             os.remove(f"{file_path}")
+#

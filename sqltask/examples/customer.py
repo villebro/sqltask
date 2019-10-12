@@ -1,6 +1,5 @@
 from datetime import date, datetime
 import os
-from typing import Dict, List
 
 from sqlalchemy.schema import Column
 from sqlalchemy.types import Date, DateTime, Integer, String
