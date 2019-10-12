@@ -24,7 +24,9 @@ setup(
         'Natural Language :: English',
     ],
     extras_require={
-        "snowflake": ["snowflake-sqlalchemy>=1.1.14"],
+        "bigquery": ["pybigquery>=0.4.11"],
         "postgres": ["psycopg2>=2.8.3"],
+        "mssql": ´["pymssql>=2.1.4"],
+        "snowflake": ["snowflake-sqlalchemy>=1.1.14"],
     },
 )
