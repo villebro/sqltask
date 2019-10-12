@@ -60,9 +60,9 @@ class SqlTask:
         :return: created engine context
         """
         engine = create_engine(url)
-        metadata = MetaData(bind=engine, **kwargs)
         engine_spec = get_engine_spec(engine.name)
         schema = schema or engine_spec.get_schema_name(engine.url)
+        metadata = MetaData(bind=engine, schema=schema, **kwargs)
         engine_context = EngineContext(name, engine, engine_spec, metadata, schema)
         self._engines[name] = engine_context
         log.debug(f"Added new engine `{name}` using `{engine_spec.__name__}` on schema `{schema}`")
