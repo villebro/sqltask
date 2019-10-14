@@ -95,9 +95,12 @@ class BaseEngineSpec:
         """
         table = table_context.table
         engine = table_context.engine_context.engine
-        where_clause = " AND ".join(
-            [f"{col} = :{col}" for col in batch_params.keys()])
-        stmt = f"DELETE FROM {table.name} WHERE {where_clause}"
+        if batch_params:
+            where_clause = " WHERE " + " AND ".join(
+                [f"{col} = :{col}" for col in batch_params.keys()])
+        else:
+            where_clause = ""
+        stmt = f"DELETE FROM {table.name}{where_clause}"
         engine.execute(text(stmt), batch_params)
 
     @classmethod

@@ -1,30 +1,26 @@
 from datetime import date, datetime
-import os
 
 from sqlalchemy.schema import Column
 from sqlalchemy.types import Date, DateTime, Integer, String
-from sqltask import SqlTask, DqSource, DqPriority, DqType
+from .base_task import BaseExampleTask
+from sqltask.common import DqSource, DqPriority, DqType
 from sqltask.exceptions import TooFewRowsException
 
 
-class CustomerTask(SqlTask):
+class FactCustomerTask(BaseExampleTask):
     def __init__(self, report_date: date):
         super().__init__(report_date=report_date)
-        source_url = os.getenv("SQLTASK_SOURCE", "sqlite:///source.db")
-        target_url = os.getenv("SQLTASK_TARGET", "sqlite:///target.db")
-        source_engine = self.add_engine("source", source_url)
-        target_engine = self.add_engine("target", target_url)
 
         table = self.add_table(
-            name="customer",
-            engine_context=target_engine,
+            name="fact_customer",
+            engine_context=self.ENGINE_TARGET,
             columns=[
-                Column("report_date", Date, comment="Built-in row id", primary_key=True),
+                Column("report_date", Date, comment="Date of snapshot", primary_key=True),
                 Column("etl_timestamp", DateTime, comment="Timestamp when row was created", nullable=False),
-                Column("customer_id", String(128), comment="Unique customer identifier", primary_key=True),
-                Column("birthdate", Date, comment="Birthdate of customer if defined and in the past"),
-                Column("age", Integer, comment="Age of customer in years if birthdate defined"),
-                Column("sector_code", String(10), comment="Sector code of customer"),
+                Column("customer_id", String(10), comment="Unique customer identifier", primary_key=True),
+                Column("birthdate", Date, comment="Birthdate of customer if defined and in the past", nullable=True),
+                Column("age", Integer, comment="Age of customer in years if birthdate defined", nullable=True),
+                Column("sector_code", String(10), comment="Sector code of customer", nullable=True),
             ],
             comment="The customer table",
             timestamp_column_name="etl_timestamp",
@@ -35,16 +31,12 @@ class CustomerTask(SqlTask):
             name="main",
             sql="""
             SELECT id,
-                   birthday,
-                   1 as num
-            FROM (SELECT DATE('2019-06-30') AS report_date, '1234567' AS id, '1980-01-01' AS birthday UNION ALL 
-                  SELECT DATE('2019-06-30') AS report_date, '2345678' AS id, '2080-01-01' AS birthday UNION ALL 
-                  SELECT DATE('2019-06-30') AS report_date, '2245678' AS id, '1980-13-01' AS birthday UNION ALL 
-                  SELECT DATE('2019-06-30') AS report_date, '3456789' AS id, NULL AS birthday)
+                   birthday
+            FROM customers
             WHERE report_date = :report_date
             """,
             params={"report_date": report_date},
-            engine_context=source_engine,
+            engine_context=self.ENGINE_SOURCE,
         )
 
         self.add_lookup_query(
@@ -52,16 +44,12 @@ class CustomerTask(SqlTask):
             sql="""
             SELECT customer_id,
                    sector_code
-            FROM (SELECT DATE('2019-06-30') AS execution_date, '1234567' AS customer_id, '111211' AS sector_code UNION ALL 
-                  SELECT DATE('2019-06-30') AS execution_date, '2345678' AS customer_id, '143' AS sector_code UNION ALL 
-                  SELECT DATE('2019-06-30') AS execution_date, '2345678' AS customer_id, '143' AS sector_code UNION ALL 
-                  SELECT DATE('2019-06-30') AS execution_date, '3456789' AS customer_id, NULL AS sector_code 
-            )
-            WHERE execution_date = :report_date
+            FROM sector_codes
+            WHERE start_date <= :report_date and end_date > :report_date
             """,
             params={"report_date": report_date},
             table_context=table,
-            engine_context=source_engine,
+            engine_context=self.ENGINE_SOURCE,
         )
 
     def transform(self) -> None:

@@ -26,7 +26,7 @@ setup(
     extras_require={
         "bigquery": ["pybigquery>=0.4.11"],
         "postgres": ["psycopg2>=2.8.3"],
-        "mssql": ´["pymssql>=2.1.4"],
+        "mssql": ["pymssql>=2.1.4"],
         "snowflake": ["snowflake-sqlalchemy>=1.1.14"],
     },
 )

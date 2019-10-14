@@ -478,14 +478,14 @@ class SqlTask:
             engine_spec = table_context.engine_context.engine_spec
             engine_spec.insert_rows(output_rows, table_context)
 
-    def map_row(self,
-                column_source: str,
-                column_target: str,
-                priority: DqPriority,
-                row_source: RowProxy,
-                row_target: OutputRow,
-                default_value: Any = None,
-                dq_function: Optional[Callable[[Any], Optional[DqType]]] = None) -> Any:
+    def map_column(self,
+                   column_source: str,
+                   column_target: str,
+                   priority: DqPriority,
+                   row_source: RowProxy,
+                   row_target: OutputRow,
+                   default_value: Any = None,
+                   dq_function: Optional[Callable[[Any], Optional[DqType]]] = None) -> Any:
         """
         Perform a simple mapping from source to target. Returns the mapped value
 

@@ -55,3 +55,8 @@ class OutputRow(UserDict):
     def __init__(self, table_context: TableContext):
         super().__init__(table_context.batch_params)
         self.table_context = table_context
+
+
+class TransformationResult(NamedTuple):
+    value: Any
+    dq_type: Optional[DqType]
