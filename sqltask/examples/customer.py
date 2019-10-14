@@ -21,10 +21,10 @@ class CustomerTask(SqlTask):
             columns=[
                 Column("report_date", Date, comment="Built-in row id", primary_key=True),
                 Column("etl_timestamp", DateTime, comment="Timestamp when row was created", nullable=False),
-                Column("customer_id", String, comment="Unique customer identifier", primary_key=True),
+                Column("customer_id", String(128), comment="Unique customer identifier", primary_key=True),
                 Column("birthdate", Date, comment="Birthdate of customer if defined and in the past"),
                 Column("age", Integer, comment="Age of customer in years if birthdate defined"),
-                Column("sector_code", String, comment="Sector code of customer"),
+                Column("sector_code", String(10), comment="Sector code of customer"),
             ],
             comment="The customer table",
             timestamp_column_name="etl_timestamp",
@@ -125,7 +125,7 @@ class CustomerTask(SqlTask):
 
             self.add_row(row)
 
-        for i in range(100):
+        for i in range(10000):
             row = self.get_new_row("customer")
             row["customer_id"] = 'a' + str(i)
             row["birthdate"] = None

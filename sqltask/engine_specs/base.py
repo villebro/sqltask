@@ -11,7 +11,8 @@ log = logging
 
 class UploadType(Enum):
     SQL_INSERT = 1
-    CSV = 2
+    SQL_INSERT_MULTIROW = 2
+    CSV = 3
 
 
 class BaseEngineSpec:
@@ -20,6 +21,9 @@ class BaseEngineSpec:
     """
     engine: Optional[str] = None
     default_upload_type = UploadType.SQL_INSERT
+    supported_uploads = (UploadType.SQL_INSERT,
+                         UploadType.SQL_INSERT_MULTIROW,
+                         )
     supports_column_comments = True
     supports_table_comments = True
     supports_schemas = True
@@ -39,20 +43,39 @@ class BaseEngineSpec:
         upload_type = upload_type or cls.default_upload_type
         if upload_type == UploadType.SQL_INSERT:
             cls._insert_rows_sql_insert(output_rows, table_context)
+        elif upload_type == UploadType.SQL_INSERT_MULTIROW:
+            cls._insert_rows_sql_insert_multirow(output_rows, table_context)
         elif upload_type == UploadType.CSV:
             cls._insert_rows_csv(output_rows, table_context)
         else:
             raise NotImplementedError(f"Unsupported upload type: {upload_type}")
 
     @classmethod
-    def _insert_rows_sql_insert(cls, output_rows: List[Dict[str, Any]],
+    def _insert_rows_sql_insert(cls,
+                                output_rows: List[Dict[str, Any]],
                                 table_context: TableContext) -> None:
         """
         Insert rows using standard insert statements. Not very performant, but mostly
         universally supported.
         """
+        if UploadType.SQL_INSERT not in cls.supported_uploads:
+            raise Exception(f"SQL INSERT not supported by `{cls.__name__}`")
         with table_context.engine_context.engine.begin() as conn:
             conn.execute(table_context.table.insert(), *output_rows)
+
+    @classmethod
+    def _insert_rows_sql_insert_multirow(cls,
+                                         output_rows: List[Dict[str, Any]],
+                                         table_context: TableContext,
+                                         chunksize: int = 5000) -> None:
+        """
+        Insert rows using standard insert statements. Not very performant, but mostly
+        universally supported.
+        """
+        if UploadType.SQL_INSERT not in cls.supported_uploads:
+            raise Exception(f"SQL INSERT not supported by `{cls.__name__}`")
+        with table_context.engine_context.engine.begin() as conn:
+            conn.execute(table_context.table.insert().values(output_rows))
 
     @classmethod
     def _insert_rows_csv(cls, output_rows: List[Dict[str, Any]],
@@ -87,6 +110,7 @@ class BaseEngineSpec:
         :return: schema name
         """
         schema = None
-        if cls.supports_schemas and "/" in url.database:
-            schema = url.database.split("/")[1]
+        database = url.database
+        if cls.supports_schemas and database is not None and "/" in database:
+            schema = database.split("/")[1]
         return schema
