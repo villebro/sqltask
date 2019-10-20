@@ -2,7 +2,7 @@ import os
 from typing import Any, Dict, List
 
 from sqltask.engine_specs.base import BaseEngineSpec, UploadType
-from sqltask.common import TableContext
+from sqltask.classes.common import TableContext
 from sqltask.utils.engine_specs import create_tmp_csv
 
 

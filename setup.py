@@ -1,8 +1,10 @@
 from setuptools import find_packages, setup
 
+from sqltask import __version__
+
 setup(
     name='sqltask',
-    version='0.1.4',
+    version=__version__,
     description='ETL tool for performing mostly SQL-based data transformation',
     long_description='',
     url='https://github.com/villebro/sqltask',
@@ -11,7 +13,6 @@ setup(
     packages=find_packages(),
     install_requires=[
         'sqlalchemy',
-        'sqlalchemy-utils',
     ],
     license='MIT',
     classifiers=[

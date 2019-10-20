@@ -2,7 +2,7 @@ import os
 from typing import Any, Dict, List
 
 from sqltask.engine_specs.base import BaseEngineSpec, UploadType
-from sqltask.common import TableContext
+from sqltask.classes.common import TableContext
 from sqltask.utils.engine_specs import create_tmp_csv
 
 
@@ -31,7 +31,7 @@ class SnowflakeEngineSpec(BaseEngineSpec):
         try:
             with engine.connect() as conn:
                 conn.execute(f"CREATE OR REPLACE TEMPORARY STAGE {table.name}")
-                conn.execute(f"PUT FILE://{file_path} @{table.name}")
+                conn.execute(f"PUT file://{file_path} @{table.name}")
                 conn.execute(f"COPY INTO {table.name} FROM @{table.name} FILE_FORMAT = (TYPE = 'CSV' FIELD_DELIMITER = '\t' SKIP_HEADER = 0 EMPTY_FIELD_AS_NULL = TRUE COMPRESSION = GZIP) FORCE = TRUE")
         finally:
             os.remove(f"{file_path}")

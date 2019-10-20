@@ -1,10 +1,11 @@
 from enum import Enum
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, TYPE_CHECKING
 
 from sqlalchemy.engine.url import URL
 from sqlalchemy.sql import text
-from sqltask.common import TableContext
+if TYPE_CHECKING:
+    from sqltask.classes.common import TableContext
 
 log = logging
 
@@ -30,7 +31,7 @@ class BaseEngineSpec:
 
     @classmethod
     def insert_rows(cls, output_rows: List[Dict[str, Any]],
-                    table_context: TableContext,
+                    table_context: "TableContext",
                     upload_type: Optional[UploadType] = None) -> None:
         """
         Default method for inserting data into database. This
@@ -53,7 +54,7 @@ class BaseEngineSpec:
     @classmethod
     def _insert_rows_sql_insert(cls,
                                 output_rows: List[Dict[str, Any]],
-                                table_context: TableContext) -> None:
+                                table_context: "TableContext") -> None:
         """
         Insert rows using standard insert statements. Not very performant, but mostly
         universally supported.
@@ -66,7 +67,7 @@ class BaseEngineSpec:
     @classmethod
     def _insert_rows_sql_insert_multirow(cls,
                                          output_rows: List[Dict[str, Any]],
-                                         table_context: TableContext,
+                                         table_context: "TableContext",
                                          chunksize: int = 5000) -> None:
         """
         Insert rows using standard insert statements. Not very performant, but mostly
@@ -79,11 +80,11 @@ class BaseEngineSpec:
 
     @classmethod
     def _insert_rows_csv(cls, output_rows: List[Dict[str, Any]],
-                         table_context: TableContext) -> None:
+                         table_context: "TableContext") -> None:
         raise NotImplementedError(f"`{cls.__name__}` does not support CSV upload")
 
     @classmethod
-    def truncate_rows(cls, table_context: TableContext,
+    def truncate_rows(cls, table_context: "TableContext",
                       batch_params: Dict[str, Any]) -> None:
         """
         Delete old rows from target table that match the execution parameters.

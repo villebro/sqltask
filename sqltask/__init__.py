@@ -5,13 +5,27 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Union, Set
 from uuid import uuid4
 
 import sqlalchemy as sa
-from sqlalchemy.engine import create_engine, ResultProxy, RowProxy
-from sqlalchemy.schema import Column, MetaData, Table
+from sqlalchemy.engine import ResultProxy, RowProxy
+from sqlalchemy.schema import Column, Table
 from sqlalchemy.sql import text
 from sqlalchemy.types import String
-from sqltask.common import DqPriority, DqSource, DqType, EngineContext, OutputRow, TableContext, QueryContext
+from sqltask.classes.common import (
+    OutputRow,
+    Lookup,
+    BaseDataSource,
+    TableContext,
+    QueryContext,
+)
+from sqltask.classes.context import EngineContext
+from sqltask.classes.dq import DqPriority, DqSource, DqType
+from sqltask.classes.sql import LookupSource
 from sqltask.engine_specs import get_engine_spec
-from sqltask.exceptions import ExecutionArgumentException, MandatoryValueMissingException
+from sqltask.classes.exceptions import (
+    ExecutionArgumentException,
+    MandatoryValueMissingException
+)
+
+__version__ = '0.2.0'
 
 # initialize logging
 log = logging.getLogger('sqltask')
@@ -35,38 +49,11 @@ class SqlTask:
         self._tables: Dict[str, TableContext] = {}
         self._dq_tables: Dict[str, TableContext] = {}
         self._engines: Dict[str, EngineContext] = {}
-        self._lookup_queries: Dict[str, QueryContext] = {}
-        self._source_queries: Dict[str, QueryContext] = {}
-        self._lookup_cache: Dict[str, Union[Set[Union[Any, Tuple[Any, ...]]],
-                                            Dict[Union[Any, Tuple[Any, ...]],
-                                                 Union[Any, Dict[str, Any]]]]] = {}
+        self._data_sources: Dict[str, BaseDataSource] = {}
+        self._lookup_sources: Dict[str, LookupSource] = {}
         self._output_rows: Dict[str, List[Dict[str, Any]]] = {}
         self._dq_output_rows: Dict[str, List[Dict[str, Any]]] = {}
         self.batch_params: Dict[str, Any] = batch_params or {}
-
-    def add_engine(self,
-                   name: str,
-                   url: str,
-                   schema: Optional[str] = None,
-                   **kwargs) -> EngineContext:
-        """
-        Add a new engine to be used by sources, sinks and lookups.
-
-        :param url: SqlAlchemy URL of engine.
-        :param name: alias by which the engine is referenced during during operations.
-        :param schema: Schema to use. If left unspecified, falls back to the schema
-        defined in the engine URL if supported
-        :param kwargs: additional parameters to be passed to metadata object.
-        :return: created engine context
-        """
-        engine = create_engine(url)
-        engine_spec = get_engine_spec(engine.name)
-        schema = schema or engine_spec.get_schema_name(engine.url)
-        metadata = MetaData(bind=engine, schema=schema, **kwargs)
-        engine_context = EngineContext(name, engine, engine_spec, metadata, schema)
-        self._engines[name] = engine_context
-        log.debug(f"Added new engine `{name}` using `{engine_spec.__name__}` on schema `{schema}`")
-        return engine_context
 
     def add_table(self,
                   name: str,
@@ -77,6 +64,7 @@ class SqlTask:
                   batch_params: Optional[Dict[str, Any]] = None,
                   info_column_names: Optional[List[str]] = None,
                   timestamp_column_name: Optional[str] = None,
+                  dq_disable: bool = False,
                   dq_table_name: Optional[str] = None,
                   dq_engine_context: Optional[EngineContext] = None,
                   dq_schema: Optional[str] = None,
@@ -85,7 +73,7 @@ class SqlTask:
         Add a table schema.
 
         :param name: Name of target table in database.
-        :param engine_context: Name of engine to bind table to.
+        :param engine_context: engine to bind table to.
         :param columns: All columns in table.
         :param comment: Table comment.
         :param schema: Schema to use. If left unspecified, falls back to the schema
@@ -95,6 +83,7 @@ class SqlTask:
         :param info_column_names: Name of columns to be appended to the data quality
         table for informational purposes that aren't primary keys, e.g. customer name.
         :param timestamp_column_name: Name of column used for populating etl timestamp.
+        :param dq_disable: Disable creation of data quality table.
         :param dq_table_name: Name of data quality table. Defaults to original table
         name + `_dq`
         :param dq_engine_context: Engine context used for creating data quality table.
@@ -104,7 +93,11 @@ class SqlTask:
         :param kwargs: Additional parameters to pass to Table constructor
         :return: created table context
         """
-        table = Table(name, engine_context.metadata, comment=comment, *columns, **kwargs)
+        table = Table(name,
+                      engine_context.metadata,
+                      comment=comment,
+                      *columns,
+                      **kwargs)
         schema = schema or engine_context.schema
         table_context = TableContext(name, table, engine_context, batch_params,
                                      info_column_names, timestamp_column_name, schema)
@@ -112,45 +105,50 @@ class SqlTask:
         self._output_rows[name] = []
 
         # Initialize data quality table
-        dq_table_name = dq_table_name or name + "_dq"
-        dq_engine_context = dq_engine_context or engine_context
-        dq_timestamp_column_name = timestamp_column_name or "etl_timestamp"
-        info_column_names = info_column_names or []
-        batch_params = batch_params or {}
+        if not dq_disable:
+            dq_table_name = dq_table_name or name + "_dq"
+            dq_engine_context = dq_engine_context or engine_context
+            dq_timestamp_column_name = timestamp_column_name or "etl_timestamp"
+            info_column_names = info_column_names or []
+            batch_params = batch_params or {}
 
-        # primary key columns
-        batch_columns = []
-        primary_key_columns = []
-        info_columns = []
+            # primary key columns
+            batch_columns = []
+            primary_key_columns = []
+            info_columns = []
 
-        for column in columns:
-            # make copy of column and remove primary keys as one row might
-            # have several data quality issues. Also make nullable, as data quality
-            # issues don't necessarily relate to a specific column in the target table
-            column_copy = column.copy()
-            column_copy.primary_key = False
-            column_copy.nullable = True
-            if column.name in batch_params:
-                batch_columns.append(column_copy)
-            elif column.primary_key:
-                primary_key_columns.append(column_copy)
-            elif column.name in info_column_names:
-                info_columns.append(column_copy)
+            for column in columns:
+                # make copy of column and remove primary keys as one row might
+                # have several data quality issues. Also make nullable, as data quality
+                # issues don't necessarily relate to a specific column in the target table
+                column_copy = column.copy()
+                column_copy.primary_key = False
+                column_copy.nullable = True
+                if column.name in batch_params:
+                    batch_columns.append(column_copy)
+                elif column.primary_key:
+                    primary_key_columns.append(column_copy)
+                elif column.name in info_column_names:
+                    info_columns.append(column_copy)
 
-        dq_columns = batch_columns + primary_key_columns + info_columns + [
-            Column("dq_rowid", String, comment="Unique row id"),
-            Column("source", String, comment="Source of issue"),
-            Column("priority", String, comment="Priority of issue"),
-            Column("dq_type", String, comment="Type of issue"),
-            Column("column_name", String, comment="Affected column in target table"),
-        ]
-        dq_table = Table(dq_table_name, dq_engine_context.metadata, *dq_columns, **kwargs)
-        dq_schema = dq_schema or schema
-        dq_table_context = TableContext(name, dq_table, dq_engine_context,
-                                        batch_params, info_column_names,
-                                        dq_timestamp_column_name, dq_schema)
-        self._dq_tables[name] = dq_table_context
-        self._dq_output_rows[name] = []
+            default_dq_columns = [
+                Column("dq_rowid", String, comment="Unique row id"),
+                Column("source", String, comment="Source of issue"),
+                Column("priority", String, comment="Priority of issue"),
+                Column("dq_type", String, comment="Type of issue"),
+                Column("column_name", String, comment="Affected column in target table"),
+            ]
+
+            dq_columns = batch_columns + primary_key_columns + info_columns + \
+                         default_dq_columns
+
+            dq_table = Table(dq_table_name, dq_engine_context.metadata, *dq_columns, **kwargs)
+            dq_schema = dq_schema or schema
+            dq_table_context = TableContext(name, dq_table, dq_engine_context,
+                                            batch_params, info_column_names,
+                                            dq_timestamp_column_name, dq_schema)
+            self._dq_tables[name] = dq_table_context
+            self._dq_output_rows[name] = []
         return table_context
 
     def get_table_context(self, name: str) -> TableContext:
@@ -257,24 +255,21 @@ class SqlTask:
             output_row[table_context.timestamp_column_name] = datetime.utcnow()
         return output_row
 
-    def add_source_query(self, name: str, sql: str,
-                         params: Optional[Dict[str, Any]],
-                         engine_context: EngineContext) -> QueryContext:
+    def add_data_source(self, data_source: BaseDataSource) -> None:
         """
-        Add a query that can be iterated over with the `self.get_source_rows` method.
+        Add a data source that can be iterated over.
 
-        :param name: reference to query when calling `get_rows()`
-        :param sql: sql query with parameter values prefixed with a colon, e.g.
-        `WHERE dt <= :batch_date`
-        :param params: mapping between parameter keys and values, e.g.
-        `{"batch_date": date(2010, 1, 1)}`
-        :param engine_context: engine context used to execute the query
-        :return: The generated query context instance
+        :param data_source: an instance of data source
         """
-        params = params or {}
-        query_context = QueryContext(sql, params, None, engine_context)
-        self._source_queries[name] = query_context
-        return query_context
+        self._data_sources[data_source.name] = data_source
+
+    def add_lookup_source(self, lookup_source: LookupSource) -> None:
+        """
+        Add a data source that can be iterated over.
+
+        :param lookup: an instance of lookup
+        """
+        self._lookup_sources[lookup_source.name] = lookup_source
 
     def add_lookup_query(self, name: str, sql: str,
                          params: Optional[Dict[str, Any]],
@@ -296,7 +291,7 @@ class SqlTask:
         """
         params = params or {}
         query_context = QueryContext(sql, params, table_context, engine_context)
-        self._lookup_queries[name] = query_context
+        self._lookups[name] = query_context
         return query_context
 
     def add_row(self, row: OutputRow) -> None:
@@ -317,7 +312,7 @@ class SqlTask:
         """
         Retrieve a source query context. Raises exception if query context is not found
         """
-        query_context = self._source_queries.get(name)
+        query_context = self._data_sources.get(name)
         if query_context is None:
             raise Exception(f"No source query defined: `{name}`")
         return query_context
@@ -326,7 +321,7 @@ class SqlTask:
         """
         Retrieve a lookup query context. Raises exception if query context is not found
         """
-        query_context = self._lookup_queries.get(name)
+        query_context = self._lookups.get(name)
         if query_context is None:
             raise Exception(f"No lookup query defined: `{name}`")
         return query_context

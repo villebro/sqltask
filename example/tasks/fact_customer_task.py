@@ -3,8 +3,9 @@ from datetime import date, datetime
 from sqlalchemy.schema import Column
 from sqlalchemy.types import Date, DateTime, Integer, String
 from .base_task import BaseExampleTask
-from sqltask.common import DqSource, DqPriority, DqType
-from sqltask.exceptions import TooFewRowsException
+from sqltask.classes.dq import DqSource, DqPriority, DqType
+from sqltask.classes.exceptions import TooFewRowsException
+from sqltask.classes.sql import LookupSource, SqlDataSource
 
 
 class FactCustomerTask(BaseExampleTask):
@@ -26,8 +27,7 @@ class FactCustomerTask(BaseExampleTask):
             timestamp_column_name="etl_timestamp",
             batch_params={"report_date": report_date},
         )
-
-        self.add_source_query(
+        self.add_data_source(SqlDataSource.create(
             name="main",
             sql="""
             SELECT id,
@@ -37,25 +37,24 @@ class FactCustomerTask(BaseExampleTask):
             """,
             params={"report_date": report_date},
             engine_context=self.ENGINE_SOURCE,
-        )
+        ))
 
-        self.add_lookup_query(
+        self.add_lookup_source(LookupSource(
             name="sector_code",
             sql="""
-            SELECT customer_id,
+            SELECT id,
                    sector_code
             FROM sector_codes
             WHERE start_date <= :report_date and end_date > :report_date
             """,
             params={"report_date": report_date},
-            table_context=table,
             engine_context=self.ENGINE_SOURCE,
-        )
+        ))
 
     def transform(self) -> None:
         report_date = self.batch_params['report_date']
-        for in_row in self.get_source_rows("main"):
-            row = self.get_new_row("customer")
+        for in_row in self._data_sources["main"]:
+            row = self.get_new_row("fact_customer")
 
             # customer_id
             customer_id = in_row['id']
@@ -102,7 +101,9 @@ class FactCustomerTask(BaseExampleTask):
             row["age"] = age
 
             # sector_code
-            sector_code = self.get_lookup("sector_code").get(customer_id)
+            sector_code_lookup = self._lookup_sources["sector_code"].get_lookup()
+
+            sector_code = sector_code_lookup.get(customer_id)
             if sector_code is None:
                 self.log_dq(source=DqSource.SOURCE,
                             priority=DqPriority.MEDIUM,
@@ -114,7 +115,7 @@ class FactCustomerTask(BaseExampleTask):
             self.add_row(row)
 
         for i in range(10000):
-            row = self.get_new_row("customer")
+            row = self.get_new_row("fact_customer")
             row["customer_id"] = 'a' + str(i)
             row["birthdate"] = None
             row["age"] = None
@@ -122,10 +123,5 @@ class FactCustomerTask(BaseExampleTask):
             self.add_row(row)
 
     def validate(self):
-        if len(self._output_rows['customer']) < 2:
+        if len(self._output_rows['fact_customer']) < 2:
             raise TooFewRowsException("Less than 2 rows")
-
-
-if __name__ == "__main__":
-    task = CustomerTask(report_date=date(2019, 6, 30))
-    task.execute()
