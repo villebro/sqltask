@@ -52,14 +52,14 @@ class InitSourceTask(BaseExampleTask):
         ))
 
     def transform(self) -> None:
-        for in_row in self._data_sources["customers.csv"]:
+        for in_row in self.get_data_source("customers.csv"):
             row = self.get_new_row("customers")
             row["report_date"] = datetime.strptime(in_row["report_date"], "%Y-%m-%d").date()
             row["id"] = in_row["id"]
             row["birthday"] = in_row["birthday"]
             self.add_row(row)
 
-        for in_row in self._data_sources["sector_codes.csv"]:
+        for in_row in self.get_data_source("sector_codes.csv"):
             row = self.get_new_row("sector_codes")
             row["start_date"] = datetime.strptime(in_row["start_date"], "%Y-%m-%d").date()
             row["end_date"] = datetime.strptime(in_row["end_date"], "%Y-%m-%d").date()

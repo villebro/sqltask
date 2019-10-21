@@ -53,7 +53,8 @@ class FactCustomerTask(BaseExampleTask):
 
     def transform(self) -> None:
         report_date = self.batch_params['report_date']
-        for in_row in self._data_sources["main"]:
+        sector_code_lookup = self.get_lookup("sector_code")
+        for in_row in self.get_data_source("main"):
             row = self.get_new_row("fact_customer")
 
             # customer_id
@@ -101,8 +102,6 @@ class FactCustomerTask(BaseExampleTask):
             row["age"] = age
 
             # sector_code
-            sector_code_lookup = self._lookup_sources["sector_code"].get_lookup()
-
             sector_code = sector_code_lookup.get(customer_id)
             if sector_code is None:
                 self.log_dq(source=DqSource.SOURCE,

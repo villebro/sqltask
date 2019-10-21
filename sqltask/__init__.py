@@ -259,7 +259,7 @@ class SqlTask:
         """
         Add a data source that can be iterated over.
 
-        :param data_source: an instance of data source
+        :param data_source: an instance of base class BaseDataSource
         """
         self._data_sources[data_source.name] = data_source
 
@@ -267,32 +267,9 @@ class SqlTask:
         """
         Add a data source that can be iterated over.
 
-        :param lookup: an instance of lookup
+        :param lookup_source: an instance of base class LookupSource
         """
         self._lookup_sources[lookup_source.name] = lookup_source
-
-    def add_lookup_query(self, name: str, sql: str,
-                         params: Optional[Dict[str, Any]],
-                         table_context: TableContext,
-                         engine_context: EngineContext) -> QueryContext:
-        """
-        Add a query that can `self.get_lookup(name)` method. The results are not
-        eagerly populated, but rather only once they are requested the first time
-        with `get_lookup`.
-
-        :param name: reference to query when calling `get_lookup()`
-        :param sql: sql query with parameter values prefixed with a colon, e.g.
-        `WHERE dt <= :batch_date`
-        :param params: mapping between parameter keys and values, e.g.
-        `{"batch_date": date(2010, 1, 1)}`
-        :param table_context: table context used for logging data quality issues
-        :param engine_context: engine context used to execute the query
-        :return: The generated query context instance
-        """
-        params = params or {}
-        query_context = QueryContext(sql, params, table_context, engine_context)
-        self._lookups[name] = query_context
-        return query_context
 
     def add_row(self, row: OutputRow) -> None:
         """
@@ -308,112 +285,35 @@ class SqlTask:
             output_row[column.name] = row[column.name]
         self._output_rows[row.table_context.name].append(output_row)
 
-    def _get_source_query(self, name: str) -> QueryContext:
-        """
-        Retrieve a source query context. Raises exception if query context is not found
-        """
-        query_context = self._data_sources.get(name)
-        if query_context is None:
-            raise Exception(f"No source query defined: `{name}`")
-        return query_context
-
-    def _get_lookup_query(self, name: str) -> QueryContext:
-        """
-        Retrieve a lookup query context. Raises exception if query context is not found
-        """
-        query_context = self._lookups.get(name)
-        if query_context is None:
-            raise Exception(f"No lookup query defined: `{name}`")
-        return query_context
-
-    def get_source_rows(self, name: str) -> ResultProxy:
+    def get_data_source(self, name: str) -> BaseDataSource:
         """
         Get results for a predefined query.
 
         :param name: name of query that has been added with the `self.add_source_query`
         method.
 
-        :return: The result from `engine.execute()`
+        :return: The DataSource instance that can be iterated over
         """
         log.debug(f"Retrieving source query `{name}`")
-        query_context = self._get_source_query(name)
-        engine = query_context.engine_context.engine
-        return engine.execute(text(query_context.sql), query_context.params)
+        data_source = self._data_sources.get(name)
+        if data_source is None:
+            raise Exception(f"Data source `{data_source}` not found")
+        return data_source
 
-    def get_lookup(self,
-                   name: str,
-                   keys: int = 1) -> Union[Set[Union[Any, Tuple[Any, ...]]],
-                                           Dict[Union[Any, Tuple[Any, ...]],
-                                                Union[Any, Dict[str, Any]]]]:
+    def get_lookup(self, name: str) -> Lookup:
         """
         Get results for a predefined lookup query. The results for are cached when the
         method is called for the first time.
 
         :param name: name of query that has been added with the `self.add_lookup_query`
         method.
-        :param keys: number of values in the lookup key. If the number of columns
-        returned by the query equals `keys`, the lookup will be a set. However, if the
-        number of columns returned by the query is greater than `keys`, the lookup will be
-        a dict. If the number of columns is one greater than `keys`, the value of the dict
-        will be `Any`. If the number of columns is two or greater than `keys`, the value of
-        the dict will be a dict where the keys are the column names of the value columns,
-        and the values are their respective values.
 
         :return: A lookup, which can be a single or
         """
-
-        lookup = self._lookup_cache.get(name)
+        lookup = self._lookup_sources.get(name)
         if lookup is None:
-            log.debug(f"Caching lookup `{name}`")
-            row_count, duplicate_count = 0, 0
-            query_context = self._get_lookup_query(name)
-            engine = query_context.engine_context.engine
-            rows = engine.execute(text(query_context.sql), query_context.params)
-            column_names = [column[0] for column in rows.cursor.description]
-            cursor = rows.cursor
-            if keys < 1:
-                raise Exception(f"A minimum of 1 key is needed for a lookup")
-            elif len(column_names) < keys:
-                raise Exception(f"Too few columns in lookup `name`: {len(cursor.description)} found, expected at least {keys}")
-            elif len(column_names) == keys:
-                log.debug(f"Creating set-based lookup `{name}`")
-                lookup = set()
-            else:
-                log.debug(f"Creating dict-based lookup `{name}`")
-                lookup = {}
-
-            for row in rows:
-                row_count += 1
-                if isinstance(lookup, set):
-                    # set-based lookup (only key)
-                    if len(row) == 1:
-                        # single key where key is `Any`
-                        lookup.add(row[0])
-                    else:
-                        # multi-key where key is `Tuple[..., Any]`
-                        lookup.add(tuple([value for value in row]))
-                else:
-                    # regular key-value lookup
-                    if keys == 1:
-                        key = row[0]
-                    else:
-                        key = tuple([row[i] for i in range(keys)])
-
-                    if len(column_names) == keys + 1:
-                        value = row[keys]
-                    else:
-                        value = {column_names[i]: row[i]
-                                 for i in range(keys, len(column_names))}
-                    if key in lookup:
-                        duplicate_count += 1
-                    else:
-                        lookup[key] = value
-
-            if duplicate_count > 0:
-                log.warning(f"Query result for lookup `{name}` has {duplicate_count} duplicate keys, ignoring duplicate rows")
-            log.info(f"Finished populating lookup `{name}` with {len(lookup)} rows")
-            self._lookup_cache[name] = lookup
-        return lookup
+            raise Exception(f"Lookup `{name}` not found")
+        return lookup.get_lookup()
 
     def migrate_schemas(self) -> None:
         """
