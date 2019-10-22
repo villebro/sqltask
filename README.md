@@ -9,14 +9,14 @@ data quality.
 Main features of Sqltask:
 - Create well documented data models that support iterative
 development of both schema and data transformation logic.
-- Combine data quality checking with transformation logic with automatic 
+- Combine data quality checking with transformation logic with automated 
 creation of visualization-friendly data quality tables.
-- Make use of SQL where practical, especially expensive and complex data
-filtering and aggregation during data extraction.
-- Row-by-row data transformation using Python where SQL isn't feasible,
+- Make use of SQL where practical, especially expensive data filtering 
+and aggregation during data extraction.
+- Row-by-row data transformation using Python where SQL falls short,
 e.g. calling third party libraries or storing state from previous rows.
-- Encourage use of modern version control tools and processed, especially GIT.
-- Performant data loading using bulk-loading where supported.
+- Encourage use of modern version control tools and processes, especially GIT.
+- Performant data uploading/insertion where supported.
 - Easy integration with modern ETL orchestration tools, especially
 [Apache Airflow](https://airflow.apache.org/).
 
@@ -24,7 +24,7 @@ e.g. calling third party libraries or storing state from previous rows.
 
 Sqltask supports all databases with a
 [Sqlalchemy dialect](https://docs.sqlalchemy.org/en/13/dialects/), with
-performant bulk-loading for the following engines:
+dedicated support for the following engines:
 - Google BigQuery (experimental)
 - MS SQL Server (experimental)
 - Postgres
@@ -41,7 +41,10 @@ To install Sqltask without any dependencies, simply run
 pip install sqltask
 ```
 
-To automatically install all supported third party modules type
+To automatically install all supported third party modules, type
 ```bash
 pip install sqltask[bigquery,mssql,snowflake,postgres]
 ```
+
+Please refer to the [example case](https.//github.com/villebro/sqltask/example/)
+to see how Sqltask can be used in practice.
