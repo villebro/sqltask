@@ -45,24 +45,25 @@ WHERE report_date = :report_date
 SELECT id,
        sector_code
 FROM sector_codes
-WHERE start_date <= :report_date and end_date > :report_date
+WHERE start_date <= :report_date
+  AND end_date > :report_date
             """,
             params={"report_date": report_date},
             engine_context=self.ENGINE_SOURCE,
         ))
 
     def transform(self) -> None:
-        report_date = self.batch_params['report_date']
+        report_date = self.batch_params["report_date"]
         sector_code_lookup = self.get_lookup("sector_code")
         for in_row in self.get_data_source("main"):
             row = self.get_new_row("fact_customer")
 
             # customer_id
-            customer_id = in_row['id']
-            row['customer_id'] = customer_id
+            customer_id = in_row["id"]
+            row["customer_id"] = customer_id
 
             # birthdate
-            birthday = in_row['birthday']
+            birthday = in_row["birthday"]
             age = None
             try:
                 birthdate = datetime.strptime(birthday, "%Y-%m-%d").date() if birthday else None
@@ -89,10 +90,10 @@ WHERE start_date <= :report_date and end_date > :report_date
             except ValueError:
                 # parse error
                 row.log_dq(
+                    column_name="birthdate",
                     source=dq.Source.SOURCE,
                     priority=dq.Priority.HIGH,
                     category=dq.Category.INCORRECT,
-                    column_name="birthdate",
                     message=f"Cannot parse birthdate: {birthday}"
                 )
                 birthdate = None
@@ -125,12 +126,12 @@ WHERE start_date <= :report_date and end_date > :report_date
 
         for i in range(10000):
             row = self.get_new_row("fact_customer")
-            row["customer_id"] = 'a' + str(i)
+            row["customer_id"] = "a" + str(i)
             row["birthdate"] = None
             row["age"] = None
             row["sector_code"] = None
             self.add_row(row)
 
     def validate(self):
-        if len(self._output_rows['fact_customer']) < 2:
+        if len(self._output_rows["fact_customer"]) < 2:
             raise TooFewRowsException("Less than 2 rows")
