@@ -46,5 +46,5 @@ To automatically install all supported third party modules, type
 pip install sqltask[bigquery,mssql,snowflake,postgres]
 ```
 
-Please refer to the [example case](https://github.com/villebro/sqltask/example/)
+Please refer to the [example case](https://github.com/villebro/sqltask/tree/master/example)
 to see how Sqltask can be used in practice.
