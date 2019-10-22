@@ -3,7 +3,7 @@ from datetime import date, datetime
 from sqlalchemy.schema import Column
 from sqlalchemy.types import Date, DateTime, Integer, String
 from .base_task import BaseExampleTask
-from sqltask.classes.dq import DqSource, DqPriority, DqType
+from sqltask.classes import dq
 from sqltask.classes.exceptions import TooFewRowsException
 from sqltask.classes.sql import LookupSource, SqlDataSource
 
@@ -68,47 +68,57 @@ class FactCustomerTask(BaseExampleTask):
                 birthdate = datetime.strptime(birthday, "%Y-%m-%d").date() if birthday else None
                 age = None
                 if birthdate is None:
-                    self.log_dq(source=DqSource.SOURCE,
-                                priority=DqPriority.HIGH,
-                                dq_type=DqType.MISSING,
-                                column_name="birthdate",
-                                output_row=row)
+                    row.log_dq(
+                        column_name="birthdate",
+                        source=dq.Source.SOURCE,
+                        priority=dq.Priority.MEDIUM,
+                        category=dq.Category.MISSING,
+                        message="Missing birthdate",
+                    )
                 elif birthdate > report_date:
-                    self.log_dq(source=DqSource.SOURCE,
-                                priority=DqPriority.HIGH,
-                                dq_type=DqType.INCORRECT,
-                                column_name="birthdate",
-                                output_row=row)
+                    row.log_dq(
+                        column_name="birthdate",
+                        source=dq.Source.SOURCE,
+                        priority=dq.Priority.HIGH,
+                        category=dq.Category.INCORRECT,
+                        message=f"Birthdate in future: {birthday}",
+                    )
                     birthdate = None
                 else:
                     age = int((report_date - birthdate).days / 365.25)
             except ValueError:
                 # parse error
-                self.log_dq(source=DqSource.SOURCE,
-                            priority=DqPriority.HIGH,
-                            dq_type=DqType.INCORRECT,
-                            column_name="birthdate",
-                            output_row=row)
+                row.log_dq(
+                    source=dq.Source.SOURCE,
+                    priority=dq.Priority.HIGH,
+                    category=dq.Category.INCORRECT,
+                    column_name="birthdate",
+                    message=f"Cannot parse birthdate: {birthday}"
+                )
                 birthdate = None
             row["birthdate"] = birthdate
 
             # age
             if age is None:
-                self.log_dq(source=DqSource.TRANSFORM,
-                            priority=DqPriority.MEDIUM,
-                            dq_type=DqType.MISSING,
-                            column_name="age",
-                            output_row=row)
+                row.log_dq(
+                    column_name="age",
+                    source=dq.Source.TRANSFORM,
+                    priority=dq.Priority.MEDIUM,
+                    category=dq.Category.MISSING,
+                    message="Age is undefined due to undefined birthdate",
+                )
             row["age"] = age
 
             # sector_code
             sector_code = sector_code_lookup.get(customer_id)
             if sector_code is None:
-                self.log_dq(source=DqSource.SOURCE,
-                            priority=DqPriority.MEDIUM,
-                            dq_type=DqType.MISSING,
-                            column_name="sector_code",
-                            output_row=row)
+                row.log_dq(
+                    column_name="sector_code",
+                    source=dq.Source.SOURCE,
+                    priority=dq.Priority.LOW,
+                    category=dq.Category.MISSING,
+                    message="Sector code undefined"
+                )
             row["sector_code"] = sector_code
 
             self.add_row(row)

@@ -1,20 +1,20 @@
 from enum import Enum
 
 
-class DqPriority(Enum):
+class Priority(Enum):
     MANDATORY = "mandatory"
     HIGH = "high"
     MEDIUM = "medium"
     LOW = "low"
 
 
-class DqSource(Enum):
+class Source(Enum):
     SOURCE = "source"
     TRANSFORM = "transform"
     LOOKUP = "lookup"
 
 
-class DqType(Enum):
+class Category(Enum):
     MISSING = "missing"
     INCORRECT = "incorrect"
     DUPLICATE = "duplicate"

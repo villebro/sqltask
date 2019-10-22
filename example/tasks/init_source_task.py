@@ -1,7 +1,7 @@
 from datetime import datetime
 import os
 
-from sqltask.classes.dq import DqPriority
+from sqltask.classes.dq import Priority
 from sqltask.classes.file import CsvDataSource
 from sqlalchemy.schema import Column
 from sqlalchemy.types import Date, String
