@@ -25,18 +25,13 @@ from sqltask.classes.exceptions import (
     MandatoryValueMissingException
 )
 
-__version__ = '0.2.0'
+__version__ = '0.2.1'
 
 # initialize logging
 log = logging.getLogger('sqltask')
 log_level = os.getenv("SQLTASK_LOG_LEVEL")
 if log_level:
     log.setLevel(log_level)
-
-ch = logging.StreamHandler()
-ch.setFormatter(
-    logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s"))
-log.addHandler(ch)
 
 
 class SqlTask:

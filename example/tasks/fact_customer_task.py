@@ -30,10 +30,10 @@ class FactCustomerTask(BaseExampleTask):
         self.add_data_source(SqlDataSource.create(
             name="main",
             sql="""
-            SELECT id,
-                   birthday
-            FROM customers
-            WHERE report_date = :report_date
+SELECT id,
+       birthday
+FROM customers
+WHERE report_date = :report_date
             """,
             params={"report_date": report_date},
             engine_context=self.ENGINE_SOURCE,
@@ -42,10 +42,10 @@ class FactCustomerTask(BaseExampleTask):
         self.add_lookup_source(LookupSource(
             name="sector_code",
             sql="""
-            SELECT id,
-                   sector_code
-            FROM sector_codes
-            WHERE start_date <= :report_date and end_date > :report_date
+SELECT id,
+       sector_code
+FROM sector_codes
+WHERE start_date <= :report_date and end_date > :report_date
             """,
             params={"report_date": report_date},
             engine_context=self.ENGINE_SOURCE,
