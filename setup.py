@@ -1,12 +1,18 @@
+import io
 from setuptools import find_packages, setup
 
 from sqltask import __version__
 
+with io.open("README.md", "r", encoding="utf-8") as f:
+    long_description = f.read()
+
 setup(
     name='sqltask',
     version=__version__,
-    description='ETL tool for performing mostly SQL-based data transformation',
-    long_description='',
+    description="ETL tool based on SqlAlchemy for building robust ETL pipelies with "
+                "high emphasis on high data quality",
+    long_description=long_description,
+    long_description_content_type="text/markdown",
     url='https://github.com/villebro/sqltask',
     author='Ville Brofeldt',
     author_email='villebro@apache.org',

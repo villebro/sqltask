@@ -12,7 +12,7 @@ class FactCustomerTask(BaseExampleTask):
     def __init__(self, report_date: date):
         super().__init__(report_date=report_date)
 
-        table = self.add_table(
+        self.add_table(
             name="fact_customer",
             engine_context=self.ENGINE_TARGET,
             columns=[
