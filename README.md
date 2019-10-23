@@ -1,6 +1,7 @@
 [![PyPI version](https://img.shields.io/pypi/v/sqltask.svg)](https://badge.fury.io/py/sqltask)
 [![PyPI](https://img.shields.io/pypi/pyversions/sqltask.svg)](https://www.python.org/downloads/)
 [![PyPI license](https://img.shields.io/pypi/l/sqltask.svg)](https://opensource.org/licenses/MIT)
+[![Documentation](https://readthedocs.org/projects/sqltask/badge/?version=latest)](https://sqltask.readthedocs.io/en/latest/)
 # Sqltask
 Sqltask is an extensible ETL library based on [SqlAlchemy](https://www.sqlalchemy.org/)
 with the intent of enabling building robust ETL pipelines with high emphasis on 
