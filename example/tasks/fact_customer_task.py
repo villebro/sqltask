@@ -119,7 +119,7 @@ WHERE start_date <= :report_date
                     source=dq.Source.SOURCE,
                     priority=dq.Priority.LOW,
                     category=dq.Category.MISSING,
-                    message="Sector code undefined"
+                    message="Sector code undefined in lookup table"
                 )
             row["sector_code"] = sector_code
 
