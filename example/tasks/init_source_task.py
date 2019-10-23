@@ -1,3 +1,4 @@
+# flake8: noqa: E501
 from datetime import datetime
 import os
 
@@ -16,9 +17,9 @@ class InitSourceTask(BaseExampleTask):
             name="customers",
             engine_context=self.ENGINE_SOURCE,
             columns=[
-                Column("report_date", Date, comment="Monthly snapshot date", primary_key=True),
+                Column("report_date", Date, comment="Monthly snapshot date", primary_key=True),  # noqa
                 Column("id", String(128), comment="Customer id", primary_key=True),
-                Column("birthday", String(10), comment="Birthdate of customer in unreliable yyyy-mm-dd string format", nullable=True),
+                Column("birthday", String(10), comment="Birthdate of customer in unreliable yyyy-mm-dd string format", nullable=True),  # noqa
             ],
             dq_disable=True,
             comment="The original customer table",

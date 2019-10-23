@@ -1,29 +1,19 @@
 from datetime import datetime
 import logging
 import os
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union, Set
-from uuid import uuid4
+from typing import Any, Dict, List, Optional
 
 import sqlalchemy as sa
-from sqlalchemy.engine import ResultProxy, RowProxy
 from sqlalchemy.schema import Column, Table
-from sqlalchemy.sql import text
 from sqlalchemy.types import String
 from sqltask.classes.common import (
     OutputRow,
     Lookup,
     BaseDataSource,
     TableContext,
-    QueryContext,
 )
 from sqltask.classes.context import EngineContext
-from sqltask.classes.dq import Priority, Source, Category
 from sqltask.classes.sql import LookupSource
-from sqltask.engine_specs import get_engine_spec
-from sqltask.classes.exceptions import (
-    ExecutionArgumentException,
-    MandatoryValueMissingException
-)
 
 __version__ = '0.2.2'
 
@@ -132,9 +122,11 @@ class SqlTask:
                 Column("message", String, comment="Verbose description of the issue"),
             ]
 
-            dq_columns = batch_columns + primary_key_columns + info_columns + default_dq_columns
+            dq_columns = batch_columns + primary_key_columns + info_columns + \
+                default_dq_columns
 
-            dq_table = Table(dq_table_name, dq_engine_context.metadata, *dq_columns, **kwargs)
+            dq_table = Table(dq_table_name, dq_engine_context.metadata,
+                             *dq_columns, **kwargs)
             dq_schema = dq_schema or schema
             dq_output_rows = []
             dq_table_context = TableContext(
@@ -235,7 +227,8 @@ class SqlTask:
         output_row = {}
         for column in row.table_context.table.columns:
             if column.name not in row:
-                raise Exception(f"No column `{column.name}` in output row for table `{row.table_context.name}`")
+                raise Exception(f"No column `{column.name}` in output row for table "
+                                f"`{row.table_context.name}`")
             output_row[column.name] = row[column.name]
         self._output_rows[row.table_context.name].append(output_row)
 
@@ -274,6 +267,7 @@ class SqlTask:
         Migrate all table schemas to target engines. Create new tables if missing,
         add missing columns if table exists but not all columns present.
         """
+        # TODO: move this to TableContext
         tables_existing: List[TableContext] = []
         tables_missing: List[TableContext] = []
         all_tables = list(self._tables.values()) + list(self._dq_tables.values())
@@ -301,7 +295,8 @@ class SqlTask:
             for column in table.columns:
                 if column.name not in cols_existing:
                     log.debug(f"Add column `{column.name}` to table `{table.name}`")
-                    stmt = f'ALTER TABLE {table.name} ADD COLUMN {column.name} {str(column.type)}'
+                    stmt = f'ALTER TABLE {table.name} ADD COLUMN ' \
+                           f'{column.name} {str(column.type)}'
                     engine.execute(stmt)
 
     def truncate_rows(self) -> None:
@@ -326,51 +321,6 @@ class SqlTask:
             output_rows = self._dq_output_rows[table_context.name]
             engine_spec = table_context.engine_context.engine_spec
             engine_spec.insert_rows(output_rows, table_context)
-
-    def map_column(self,
-                   column_source: str,
-                   column_target: str,
-                   priority: Priority,
-                   row_source: RowProxy,
-                   row_target: OutputRow,
-                   default_value: Any = None,
-                   dq_function: Optional[Callable[[Any], Optional[Category]]] = None) -> Any:
-        """
-        Perform a simple mapping from source to target. Returns the mapped value
-
-        :param column_source: column name in source row.
-        :param column_target: column name in target row.
-        :param priority: Priority of data. if the value is None and is classified as
-        `DqPriority.MANDATORY`, the method will raise an Exception.
-        :param row_source: The source row from which to map the source column value
-        :param row_target: The target row to map the column value.
-        :param default_value: The default value to assign to the column if the source
-        row has a `None` value.
-        :param dq_function: A function that receives the column value and returns None
-        if no data quality issue detected, otherwise a `DqType` enum describing the type
-        of data quality issue.
-        :return: The value in the source, i.e. `row_source[column_source]`
-        """
-        value = row_source[column_source]
-        if value is None and priority == Priority.MANDATORY:
-            raise MandatoryValueMissingException(f"Mandatory mapping from column `{column_source}` to `{column_target}` undefined")
-        elif dq_function is not None:
-            dq_type = dq_function(value)
-            if dq_type:
-                self.log_dq(source=Source.SOURCE,
-                            priority=priority,
-                            dq_type=dq_type,
-                            column_name=column_target,
-                            output_row=row_target)
-        elif value is None:
-            self.log_dq(source=Source.SOURCE,
-                        priority=priority,
-                        dq_type=Category.MISSING,
-                        column_name=column_target,
-                        output_row=row_target)
-        value = value if value is not None else default_value
-        row_target[column_target] = value
-        return value
 
     def execute_migration(self):
         log.debug("Start schema migrate")

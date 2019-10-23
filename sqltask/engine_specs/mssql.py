@@ -32,6 +32,7 @@ class MssqlEngineSpec(BaseEngineSpec):
 #        columns = [column.name for column in table_context.table.columns]
 
         with table_context.engine_context.engine.begin() as conn:
-            stmt = f"BULK INSERT {table_context.table.name} FROM '{file_path}' WITH (FIRSTROW = 2, FIELDTERMINATOR = '\t', ROWTERMINATOR = '\n')"
+            stmt = f"BULK INSERT {table_context.table.name} FROM '{file_path}' " \
+                   f"WITH (FIRSTROW = 2, FIELDTERMINATOR = '\t', ROWTERMINATOR = '\n')"
             conn.execute(stmt)
         os.remove(f"{file_path}")

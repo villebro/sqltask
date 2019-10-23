@@ -1,6 +1,3 @@
-from typing import List, Dict, Any
-
-from sqltask import TableContext
 from sqltask.engine_specs.base import BaseEngineSpec, UploadType
 
 

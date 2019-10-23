@@ -1,3 +1,4 @@
+# flake8: noqa: E501
 from datetime import date, datetime
 
 from sqlalchemy.schema import Column

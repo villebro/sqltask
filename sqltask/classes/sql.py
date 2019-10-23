@@ -108,7 +108,8 @@ class LookupSource(BaseDataSource):
             raise Exception(f"A minimum of 1 key is needed for a lookup")
         elif len(rows.keys()) <= self.keys:
             raise Exception(
-                f"Too few columns in lookup `name`: {len(cursor.description)} found, expected more than {self.keys}")
+                f"Too few columns in lookup `name`: {len(cursor.description)} "
+                f"found, expected more than {self.keys}")
         else:
             lookup = {}
 
@@ -119,7 +120,7 @@ class LookupSource(BaseDataSource):
             if self.keys == 1:
                 key = row[0]
             else:
-                key = KeyTuple([row.values()])
+                key = self.KeyTuple([row.values()])
 
             if len(rows.keys()) == self.keys + 1:
                 value = row[self.keys]
@@ -134,7 +135,8 @@ class LookupSource(BaseDataSource):
 
         if duplicate_count > 0:
             logging.warning(
-                f"Query result for lookup `{self.name}` has {duplicate_count} duplicate keys, ignoring duplicate rows")
+                f"Query result for lookup `{self.name}` has {duplicate_count} "
+                f"duplicate keys, ignoring duplicate rows")
         logging.info(f"Finished populating lookup `{self.name}` with {len(lookup)} rows")
 
         return Lookup(self, lookup)

@@ -1,5 +1,3 @@
-from uuid import uuid4
-
 from collections import UserDict
 from datetime import datetime
 from typing import (
@@ -12,6 +10,7 @@ from typing import (
     TYPE_CHECKING,
     Union
 )
+from uuid import uuid4
 
 from sqlalchemy.schema import Table
 
@@ -76,7 +75,8 @@ class OutputRow(UserDict):
         :param message: Verbose description of observed issue.
         """
         if column_name not in self.table_context.table.columns:
-            raise Exception(f"Column `{column_name}` not in table `{self.table_context.table.name}`")
+            raise Exception(f"Column `{column_name}` not in table "
+                            f"`{self.table_context.table.name}`")
 
         dq_table_context = self.table_context.dq_table_context
         dq_output_row = dq_table_context.get_new_row()
@@ -97,7 +97,8 @@ class OutputRow(UserDict):
             if column.name not in dq_output_row and column.name in self.keys():
                 dq_output_row[column.name] = self[column.name]
             elif column.name not in dq_output_row:
-                raise Exception(f"No column `{column.name}` in output row for table `{dq_output_row.table_context.table.name}`")
+                raise Exception(f"No column `{column.name}` in output row for table "
+                                f"`{dq_output_row.table_context.table.name}`")
             dq_row[column.name] = dq_output_row[column.name]
         dq_table_context.output_rows.append(dq_row)
 
@@ -111,6 +112,6 @@ class BaseDataSource:
 
 
 class Lookup(UserDict):
-    def __init__(self, data_source: BaseDataSource,  kv: Union[Dict, Tuple]):
+    def __init__(self, data_source: BaseDataSource, kv: Union[Dict, Tuple]):
         super().__init__(kv)
         self.data_source = data_source

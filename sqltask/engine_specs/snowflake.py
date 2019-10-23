@@ -32,6 +32,9 @@ class SnowflakeEngineSpec(BaseEngineSpec):
             with engine.connect() as conn:
                 conn.execute(f"CREATE OR REPLACE TEMPORARY STAGE {table.name}")
                 conn.execute(f"PUT file://{file_path} @{table.name}")
-                conn.execute(f"COPY INTO {table.name} FROM @{table.name} FILE_FORMAT = (TYPE = 'CSV' FIELD_DELIMITER = '\t' SKIP_HEADER = 0 EMPTY_FIELD_AS_NULL = TRUE COMPRESSION = GZIP) FORCE = TRUE")
+                conn.execute(f"COPY INTO {table.name} FROM @{table.name} "
+                             f"FILE_FORMAT = (TYPE = 'CSV' FIELD_DELIMITER = '\t' "
+                             f"SKIP_HEADER = 0 EMPTY_FIELD_AS_NULL = TRUE "
+                             f"COMPRESSION = GZIP) FORCE = TRUE")
         finally:
             os.remove(f"{file_path}")

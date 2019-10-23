@@ -2,7 +2,7 @@ import csv
 from datetime import datetime
 import logging
 import tempfile
-from typing import Any, Dict,  List
+from typing import Any, Dict, List
 
 from sqltask.classes.common import TableContext
 
