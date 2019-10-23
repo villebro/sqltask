@@ -1,5 +1,8 @@
 [![PyPI version](https://img.shields.io/pypi/v/sqltask.svg)](https://badge.fury.io/py/sqltask)
 [![PyPI](https://img.shields.io/pypi/pyversions/sqltask.svg)](https://www.python.org/downloads/)
+[![Build Status](https://travis-ci.com/villebro/sqltask.svg?branch=master)](https://travis-ci.com/villebro/sqltask)
+[![codecov](https://codecov.io/gh/villebro/sqltask/branch/master/graph/badge.svg)](https://codecov.io/gh/villebro/sqltask)
+[![Requirements Status](https://requires.io/github/villebro/sqltask/requirements.svg?branch=master)](https://requires.io/github/villebro/sqltask/requirements/?branch=master)
 [![Documentation](https://readthedocs.org/projects/sqltask/badge/?version=latest)](https://sqltask.readthedocs.io/en/latest/)
 [![PyPI license](https://img.shields.io/pypi/l/sqltask.svg)](https://opensource.org/licenses/MIT)
 # Sqltask
