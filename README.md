@@ -25,8 +25,8 @@ e.g. calling third party libraries or storing state from previous rows.
 
 # Supported databases
 
-Sqltask supports all databases with a
-[Sqlalchemy dialect](https://docs.sqlalchemy.org/en/13/dialects/), with
+Sqltask supports all databases with a SqlAlchemy
+[dialect](https://docs.sqlalchemy.org/en/13/dialects/), with
 dedicated support for the following engines:
 - Google BigQuery (experimental)
 - MS SQL Server (experimental)
@@ -36,7 +36,7 @@ dedicated support for the following engines:
 
 Engines not listed above will fall back to using regular inserts.
 
-# Installation instructions
+## Installation instructions
 
 To install Sqltask without any dependencies, simply run
 
@@ -44,9 +44,9 @@ To install Sqltask without any dependencies, simply run
 pip install sqltask
 ```
 
-To automatically install all supported third party modules, type
+To automatically pull in dependencies needed by Snowflake, type
 ```bash
-pip install sqltask[bigquery,mssql,snowflake,postgres]
+pip install sqltask[snowflake]
 ```
 
 Please refer to the [example case](https://github.com/villebro/sqltask/tree/master/example)

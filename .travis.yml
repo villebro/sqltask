@@ -1,0 +1,27 @@
+cache:
+  pip: true
+jobs:
+  include:
+    - language: python
+      python: 3.7
+      dist: xenial
+      sudo: true
+      env: TOXENV=flake8
+    - language: python
+      python: 3.7
+      dist: xenial
+      sudo: true
+      env: TOXENV=mypy
+    - language: python
+      python: 3.7
+      dist: xenial
+      sudo: true
+      env: TOXENV=py37
+install:
+  - pip install --upgrade pip
+  - pip install codecov tox
+  - pip install -rrequirements.txt -rrequirements-dev.txt
+script:
+  tox
+after_success:
+  codecov

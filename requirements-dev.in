@@ -1,2 +1,8 @@
+codecov
+flake8
+mypy
+nose
 pip-tools
 sphinx
+tox
+
