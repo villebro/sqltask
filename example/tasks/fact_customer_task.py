@@ -125,14 +125,6 @@ WHERE start_date <= :report_date
 
             self.add_row(row)
 
-        for i in range(10000):
-            row = self.get_new_row("fact_customer")
-            row["customer_id"] = "a" + str(i)
-            row["birthdate"] = None
-            row["age"] = None
-            row["sector_code"] = None
-            self.add_row(row)
-
     def validate(self):
         if len(self._output_rows["fact_customer"]) < 2:
             raise TooFewRowsException("Less than 2 rows")
