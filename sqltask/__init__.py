@@ -78,13 +78,15 @@ class SqlTask:
         :param kwargs: Additional parameters to pass to Table constructor
         :return: created table context
         """
+        # comment is apparently not Optional, so needs to be passed via kwargs
+        if comment:
+            kwargs["comment"] = comment
         table = Table(name,
                       engine_context.metadata,
-                      comment=comment,
                       *columns,
                       **kwargs)
         schema = schema or engine_context.schema
-        output_rows = []
+        output_rows: List[Dict[str, Any]] = []
 
         # Initialize data quality table
         if not dq_disable:
@@ -128,12 +130,13 @@ class SqlTask:
             dq_table = Table(dq_table_name, dq_engine_context.metadata,
                              *dq_columns, **kwargs)
             dq_schema = dq_schema or schema
-            dq_output_rows = []
-            dq_table_context = TableContext(
+            dq_output_rows: List[Dict[str, Any]] = []
+            dq_table_context: Optional[TableContext] = TableContext(
                 name, dq_table, dq_engine_context, batch_params, info_column_names,
                 dq_timestamp_column_name, dq_schema, dq_output_rows)
-            self._dq_tables[name] = dq_table_context
-            self._dq_output_rows[name] = dq_output_rows
+            if dq_table_context:
+                self._dq_tables[name] = dq_table_context
+                self._dq_output_rows[name] = dq_output_rows
         else:
             dq_table_context = None
 

@@ -1,6 +1,6 @@
 import csv
 import os
-from typing import Tuple
+from typing import List, Tuple
 
 from sqltask.classes.common import BaseDataSource, Lookup
 
@@ -25,7 +25,7 @@ class CsvDataSource(BaseDataSource):
         self.delimiter = delimiter
 
         # populate column names
-        self.columns = []
+        self.columns: List[str] = []
         with open(self.file_path, newline='') as csvfile:
             csvreader = csv.reader(csvfile, delimiter=self.delimiter)
             row = next(csvreader)

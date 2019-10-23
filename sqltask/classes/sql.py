@@ -111,7 +111,7 @@ class LookupSource(BaseDataSource):
                 f"Too few columns in lookup `name`: {len(cursor.description)} "
                 f"found, expected more than {self.keys}")
         else:
-            lookup = {}
+            lookup: Dict[str, Any] = {}
 
         row_count, duplicate_count = 0, 0
         for row in rows:

@@ -4,11 +4,10 @@ from typing import (
     Any,
     Dict,
     List,
+    Mapping,
     NamedTuple,
     Optional,
-    Tuple,
     TYPE_CHECKING,
-    Union
 )
 from uuid import uuid4
 
@@ -79,6 +78,8 @@ class OutputRow(UserDict):
                             f"`{self.table_context.table.name}`")
 
         dq_table_context = self.table_context.dq_table_context
+        if dq_table_context is None:
+            raise Exception(f"No dq table context defined for {self.table_context.name}")
         dq_output_row = dq_table_context.get_new_row()
 
         dq_output_row.update({
@@ -107,11 +108,11 @@ class BaseDataSource:
     def __init__(self, name: str):
         self.name = name
 
-    def __iter__(self) -> "Lookup":
+    def __iter__(self):
         raise NotImplementedError("`__iter__` not implemented")
 
 
 class Lookup(UserDict):
-    def __init__(self, data_source: BaseDataSource, kv: Union[Dict, Tuple]):
+    def __init__(self, data_source: BaseDataSource, kv: Mapping[Any, Any]):
         super().__init__(kv)
         self.data_source = data_source

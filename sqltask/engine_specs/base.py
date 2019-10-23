@@ -1,6 +1,6 @@
 from enum import Enum
 import logging
-from typing import Any, Dict, List, Optional, TYPE_CHECKING
+from typing import Any, Dict, List, Optional, TYPE_CHECKING, Sequence
 
 from sqlalchemy.engine.url import URL
 from sqlalchemy.sql import text
@@ -22,9 +22,9 @@ class BaseEngineSpec:
     """
     engine: Optional[str] = None
     default_upload_type = UploadType.SQL_INSERT
-    supported_uploads = (UploadType.SQL_INSERT,
-                         UploadType.SQL_INSERT_MULTIROW,
-                         )
+    supported_uploads: Sequence[UploadType] = (UploadType.SQL_INSERT,
+                                               UploadType.SQL_INSERT_MULTIROW,
+                                               )
     supports_column_comments = True
     supports_table_comments = True
     supports_schemas = True
