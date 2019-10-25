@@ -2,10 +2,7 @@ import logging
 import os
 from typing import Any, Dict
 
-from sqltask.classes.common import (
-    Lookup,
-    BaseDataSource,
-)
+from sqltask.classes.common import BaseDataSource, Lookup
 from sqltask.classes.sql import LookupSource
 from sqltask.classes.table import OutputRow, TableContext
 

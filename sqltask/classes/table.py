@@ -1,13 +1,7 @@
+import logging
 from collections import UserDict
 from datetime import datetime
-import logging
-from typing import (
-    Any,
-    Dict,
-    List,
-    Optional,
-    TYPE_CHECKING,
-)
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 from uuid import uuid4
 
 import sqlalchemy as sa
@@ -15,8 +9,9 @@ from sqlalchemy.schema import Column, Table
 from sqlalchemy.types import String
 
 from sqltask.classes import dq
+
 if TYPE_CHECKING:
-    from sqltask.classes.context import EngineContext
+    from sqltask.classes.engine import EngineContext
 
 
 class TableContext:

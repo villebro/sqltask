@@ -1,8 +1,8 @@
 import os
 from typing import Any, Dict, List
 
-from sqltask.engine_specs.base import BaseEngineSpec, UploadType
 from sqltask.classes.table import TableContext
+from sqltask.engine_specs.base import BaseEngineSpec, UploadType
 from sqltask.utils.engine_specs import create_tmp_csv
 
 

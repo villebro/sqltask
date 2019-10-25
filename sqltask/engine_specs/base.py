@@ -1,9 +1,10 @@
-from enum import Enum
 import logging
+from enum import Enum
 from typing import Any, Dict, List, Optional, Sequence
 
 from sqlalchemy.engine.url import URL
 from sqlalchemy.sql import text
+
 from sqltask.classes.table import TableContext
 
 log = logging

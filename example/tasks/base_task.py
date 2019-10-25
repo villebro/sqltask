@@ -1,7 +1,7 @@
 import os
 
 from sqltask import SqlTask
-from sqltask.classes.context import EngineContext
+from sqltask.classes.engine import EngineContext
 
 
 class BaseExampleTask(SqlTask):

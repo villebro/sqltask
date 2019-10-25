@@ -1,4 +1,5 @@
 import io
+
 from setuptools import find_packages, setup
 
 from sqltask import __version__

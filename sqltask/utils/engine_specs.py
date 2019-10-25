@@ -1,7 +1,7 @@
 import csv
-from datetime import datetime
 import logging
 import tempfile
+from datetime import datetime
 from typing import Any, Dict, List
 
 from sqltask.classes.table import TableContext

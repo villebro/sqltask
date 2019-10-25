@@ -1,23 +1,15 @@
 from collections import UserDict
-from typing import (
-    Any,
-    Dict,
-    Mapping,
-    NamedTuple,
-    Optional,
-    TYPE_CHECKING,
-)
+from typing import Any, Dict, Mapping, NamedTuple, Optional
 
+from sqltask.classes.engine import EngineContext
 from sqltask.classes.table import TableContext
-if TYPE_CHECKING:
-    from sqltask.classes.context import EngineContext
 
 
 class QueryContext(NamedTuple):
     sql: str
     params: Dict[str, Any]
     table_context: Optional[TableContext]
-    engine_context: "EngineContext"
+    engine_context: EngineContext
 
 
 class BaseDataSource:

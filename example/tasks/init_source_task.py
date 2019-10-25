@@ -1,13 +1,14 @@
 # flake8: noqa: E501
-from datetime import datetime
 import os
+from datetime import datetime
 
 from sqlalchemy.schema import Column
 from sqlalchemy.types import Date, String
-from .base_task import BaseExampleTask
 
 from sqltask.classes.file import CsvDataSource
 from sqltask.classes.table import TableContext
+
+from .base_task import BaseExampleTask
 
 
 class InitSourceTask(BaseExampleTask):

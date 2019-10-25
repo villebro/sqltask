@@ -1,11 +1,13 @@
-from collections import namedtuple
 import logging
-from typing import Any, Dict, Optional, TYPE_CHECKING
+from collections import namedtuple
+from typing import TYPE_CHECKING, Any, Dict, Optional
 
 from sqlalchemy.sql import text
+
 from sqltask.classes.common import BaseDataSource, Lookup
+
 if TYPE_CHECKING:
-    from sqltask.classes.context import EngineContext
+    from sqltask.classes.engine import EngineContext
 
 
 class SqlDataSource(BaseDataSource):

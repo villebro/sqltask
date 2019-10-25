@@ -3,11 +3,13 @@ from datetime import date, datetime
 
 from sqlalchemy.schema import Column
 from sqlalchemy.types import Date, DateTime, Integer, String
-from .base_task import BaseExampleTask
+
 from sqltask.classes import dq
 from sqltask.classes.exceptions import TooFewRowsException
 from sqltask.classes.sql import LookupSource, SqlDataSource
 from sqltask.classes.table import DqTableContext
+
+from .base_task import BaseExampleTask
 
 
 class FactCustomerTask(BaseExampleTask):
