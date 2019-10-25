@@ -2,7 +2,6 @@ import logging
 from collections import UserDict
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
-from uuid import uuid4
 
 import sqlalchemy as sa
 from sqlalchemy.schema import Column, Table
@@ -15,15 +14,17 @@ if TYPE_CHECKING:
 
 
 class TableContext:
-    def __init__(self,
-                 name: str,
-                 engine_context: "EngineContext",
-                 columns: List[Column],
-                 comment: Optional[str] = None,
-                 schema: Optional[str] = None,
-                 batch_params: Optional[Dict[str, Any]] = None,
-                 timestamp_column_name: Optional[str] = None,
-                 **kwargs):
+    def __init__(
+            self,
+            name: str,
+            engine_context: "EngineContext",
+            columns: List[Column],
+            comment: Optional[str] = None,
+            schema: Optional[str] = None,
+            batch_params: Optional[Dict[str, Any]] = None,
+            timestamp_column_name: Optional[str] = None,
+            table_params: Dict[str, Any] = None,
+    ):
         """
         Create a new table context.
 
@@ -38,12 +39,13 @@ class TableContext:
         :param timestamp_column_name: Name of column used for populating etl timestamp.
         """
         # comment is apparently not Optional, so needs to be passed via kwargs
+        table_params = table_params or {}
         if comment:
-            kwargs["comment"] = comment
+            table_params["comment"] = comment
         table = Table(name,
                       engine_context.metadata,
                       *columns,
-                      **kwargs)
+                      **table_params)
 
         # Finalize main table context after dq table context is created
         self.name = name
@@ -55,6 +57,9 @@ class TableContext:
         self.output_rows: List[Dict[str, Any]] = []
 
     def get_new_row(self) -> "OutputRow":
+        """
+        Get a new row intended to be added to the table.
+        """
         output_row = OutputRow(self)
         if self.timestamp_column_name:
             output_row[self.timestamp_column_name] = datetime.utcnow()
@@ -99,19 +104,22 @@ class DqTableContext(TableContext):
     """
     A table context with the ability to log data quality issues
     """
-    def __init__(self,
-                 name: str,
-                 engine_context: "EngineContext",
-                 columns: List[Column],
-                 comment: Optional[str] = None,
-                 schema: Optional[str] = None,
-                 batch_params: Optional[Dict[str, Any]] = None,
-                 timestamp_column_name: Optional[str] = None,
-                 dq_table_name: Optional[str] = None,
-                 dq_engine_context: Optional["EngineContext"] = None,
-                 dq_schema: Optional[str] = None,
-                 dq_info_column_names: Optional[List[str]] = None,
-                 **kwargs):
+    def __init__(
+            self,
+            name: str,
+            engine_context: "EngineContext",
+            columns: List[Column],
+            comment: Optional[str] = None,
+            schema: Optional[str] = None,
+            batch_params: Optional[Dict[str, Any]] = None,
+            timestamp_column_name: Optional[str] = None,
+            table_params: Dict[str, Any] = None,
+            dq_table_name: Optional[str] = None,
+            dq_engine_context: Optional["EngineContext"] = None,
+            dq_schema: Optional[str] = None,
+            dq_info_column_names: Optional[List[str]] = None,
+            dq_table_params: Dict[str, Any] = None,
+    ):
         """
         :param name: Name of target table in database.
         :param engine_context: engine to bind table to.
@@ -122,6 +130,8 @@ class DqTableContext(TableContext):
         :param batch_params: Mapping between column names and values that are used to
         delete old rows in the table.
         :param timestamp_column_name: Name of column used for populating etl timestamp.
+        :param table_params: Additional parameters to be passed as kwargs to the
+        Table constructor.
         :param dq_table_name: Name of data quality table. Defaults to original table
         name + `_dq`
         :param dq_engine_context: Engine context used for creating data quality table.
@@ -131,7 +141,8 @@ class DqTableContext(TableContext):
         :param dq_info_column_names: Name of columns to be appended to the data
         quality table for informational purposes that aren't primary keys, e.g.
         customer name.
-        :param kwargs: Additional parameters to pass to Table constructor
+        :param table_params: Additional parameters to be passed as kwargs to the
+        data quality Table constructor.
         """
         super().__init__(
             name=name,
@@ -141,7 +152,7 @@ class DqTableContext(TableContext):
             schema=schema,
             batch_params=batch_params,
             timestamp_column_name=timestamp_column_name,
-            **kwargs,
+            table_params=table_params,
         )
 
         dq_table_name = dq_table_name or self.name + "_dq"
@@ -149,6 +160,7 @@ class DqTableContext(TableContext):
         dq_timestamp_column_name = self.timestamp_column_name or "etl_timestamp"
         dq_schema = dq_schema or self.schema
         dq_info_column_names = dq_info_column_names or []
+        dq_table_params = dq_table_params or {}
 
         # primary key columns
         batch_columns = []
@@ -170,7 +182,6 @@ class DqTableContext(TableContext):
                 info_columns.append(column_copy)
 
         default_dq_columns = [
-            Column("rowid", String, comment="Unique row id"),
             Column("source", String, comment="Source of issue"),
             Column("priority", String, comment="Priority of issue"),
             Column("category", String, comment="Category of issue"),
@@ -190,6 +201,7 @@ class DqTableContext(TableContext):
             schema=dq_schema,
             batch_params=batch_params,
             timestamp_column_name=dq_timestamp_column_name,
+            table_params=dq_table_params,
         )
 
     def delete_rows(self) -> None:
@@ -247,7 +259,6 @@ class OutputRow(UserDict):
         dq_output_row = dq_table_context.get_new_row()
 
         dq_output_row.update({
-            "rowid": str(uuid4()),
             "source": str(source.value),
             "priority": str(priority.value),
             "category": str(category.value),
@@ -267,7 +278,11 @@ class OutputRow(UserDict):
             dq_row[column.name] = dq_output_row[column.name]
         dq_table_context.output_rows.append(dq_row)
 
-    def add_row(self):
+    def append(self) -> None:
+        """
+        Append the row to the table.
+        """
+
         output_row = {}
         for column in self.table_context.table.columns:
             if column.name not in self:

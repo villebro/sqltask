@@ -9,5 +9,5 @@ class BaseExampleTask(SqlTask):
         super().__init__(**kwargs)
         source_url = os.getenv("SQLTASK_SOURCE", "sqlite:///source.db")
         target_url = os.getenv("SQLTASK_TARGET", "sqlite:///target.db")
-        self.ENGINE_SOURCE = EngineContext.create("source", source_url)
-        self.ENGINE_TARGET = EngineContext.create("target", target_url)
+        self.ENGINE_SOURCE = EngineContext("source", source_url)
+        self.ENGINE_TARGET = EngineContext("target", target_url)

@@ -11,18 +11,15 @@ if TYPE_CHECKING:
 
 
 class SqlDataSource(BaseDataSource):
-    @classmethod
-    def create(cls,
-               name: str,
-               sql: str,
-               params: Optional[Dict[str, Any]],
-               engine_context: "EngineContext",
-               schema: Optional[str] = None,
-               ) -> "SqlDataSource":
+    def __init__(
+            self,
+            name: str,
+            sql: str,
+            params: Dict[str, Any],
+            engine_context: "EngineContext",
+            schema: str = None,
+    ):
         """
-        Factory method for creating an instance of the class. The preferred way of
-        creating a sql datasource.
-
         :param name: name of data source
         :param sql: sql query with parameter values prefixed with a colon, e.g.
         `WHERE dt <= :batch_date`
@@ -31,46 +28,31 @@ class SqlDataSource(BaseDataSource):
         :param schema: schema to use when executing query. Uses schema defined
         in sql_engine if left undefined.
         :param engine_context: engine used to execute the query.
-
-        :return:
         """
         params = params or {}
         schema = schema or engine_context.schema
-        return cls(name, sql, params, engine_context, schema)
-
-    def __init__(self,
-                 name: str,
-                 sql: str,
-                 params: Dict[str, Any],
-                 engine_context: "EngineContext",
-                 schema: str = None,
-                 ):
         super().__init__(name)
         self.sql = sql
         self.params = params or {}
-        self.sql_engine = engine_context
+        self.engine_context = engine_context
         self.schema = schema or engine_context.schema
 
     def __iter__(self):
-        rows = self.sql_engine.engine.execute(text(self.sql), self.params)
+        rows = self.engine_context.engine.execute(text(self.sql), self.params)
         for row in rows:
             yield Lookup(self, dict(zip(row.keys(), row.values())))
 
 
 class LookupSource(BaseDataSource):
-    @classmethod
-    def create(cls,
-               name: str,
-               sql: str,
-               params: Optional[Dict[str, Any]],
-               engine_context: "EngineContext",
-               schema: Optional[str] = None,
-               keys: int = 1,
-               ) -> "LookupSource":
+    def __init__(self,
+                 name: str,
+                 sql: str,
+                 params: Dict[str, Any],
+                 engine_context: "EngineContext",
+                 schema: Optional[str] = None,
+                 keys: int = 1,
+                 ):
         """
-        Factory method for creating an instance of the class. The preferred way of
-        creating a lookup source.
-
         :param name: name of data source
         :param sql: sql query with parameter values prefixed with a colon, e.g.
         `WHERE dt <= :batch_date`
@@ -80,21 +62,7 @@ class LookupSource(BaseDataSource):
         in sql_engine if left undefined.
         :param keys: number of keys in dict key.
         :param engine_context: engine used to execute the query.
-
-        :return:
         """
-        params = params or {}
-        schema = schema or engine_context.schema
-        return cls(name, sql, params, engine_context, schema, keys)
-
-    def __init__(self,
-                 name: str,
-                 sql: str,
-                 params: Dict[str, Any],
-                 engine_context: "EngineContext",
-                 schema: Optional[str] = None,
-                 keys: int = 1,
-                 ):
         super().__init__(name)
         self.sql = sql
         self.params = params or {}

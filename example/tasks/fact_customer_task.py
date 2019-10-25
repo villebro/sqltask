@@ -16,13 +16,14 @@ class FactCustomerTask(BaseExampleTask):
     def __init__(self, report_date: date):
         super().__init__(report_date=report_date)
 
+        # Define the metadata for the main fact table
         self.add_table(DqTableContext(
             name="fact_customer",
             engine_context=self.ENGINE_TARGET,
             columns=[
                 Column("report_date", Date, comment="Date of snapshot", primary_key=True),
                 Column("etl_timestamp", DateTime, comment="Timestamp when row was created", nullable=False),
-                Column("customer_id", String(10), comment="Unique customer identifier", primary_key=True),
+                Column("customer_name", String(10), comment="Unique customer identifier (name)", primary_key=True),
                 Column("birthdate", Date, comment="Birthdate of customer if defined and in the past", nullable=True),
                 Column("age", Integer, comment="Age of customer in years if birthdate defined", nullable=True),
                 Column("sector_code", String(10), comment="Sector code of customer", nullable=True),
@@ -30,11 +31,14 @@ class FactCustomerTask(BaseExampleTask):
             comment="The customer table",
             timestamp_column_name="etl_timestamp",
             batch_params={"report_date": report_date},
+            dq_info_column_names=["etl_timestamp"],
         ))
-        self.add_data_source(SqlDataSource.create(
+
+        # Define the main query used to populate the target table
+        self.add_data_source(SqlDataSource(
             name="main",
             sql="""
-SELECT id,
+SELECT name,
        birthday
 FROM customers
 WHERE report_date = :report_date
@@ -43,10 +47,11 @@ WHERE report_date = :report_date
             engine_context=self.ENGINE_SOURCE,
         ))
 
+        # Define a lookup source used for enriching the main source query
         self.add_lookup_source(LookupSource(
             name="sector_code",
             sql="""
-SELECT id,
+SELECT name,
        sector_code
 FROM sector_codes
 WHERE start_date <= :report_date
@@ -62,9 +67,9 @@ WHERE start_date <= :report_date
         for in_row in self.get_data_source("main"):
             row = self.get_new_row("fact_customer")
 
-            # customer_id
-            customer_id = in_row["id"]
-            row["customer_id"] = customer_id
+            # customer_name
+            customer_name = in_row["name"]
+            row["customer_name"] = customer_name
 
             # birthdate
             birthday = in_row["birthday"]
@@ -115,7 +120,7 @@ WHERE start_date <= :report_date
             row["age"] = age
 
             # sector_code
-            sector_code = sector_code_lookup.get(customer_id)
+            sector_code = sector_code_lookup.get(customer_name)
             if sector_code is None:
                 row.log_dq(
                     column_name="sector_code",
@@ -126,8 +131,9 @@ WHERE start_date <= :report_date
                 )
             row["sector_code"] = sector_code
 
-            row.add_row()
+            # Finally add row to table output
+            row.append()
 
     def validate(self):
         if len(self.get_table_context("fact_customer").output_rows) < 2:
-            raise TooFewRowsException("Less than 2 rows")
+            raise TooFewRowsException("There should never be less than 2 rows")

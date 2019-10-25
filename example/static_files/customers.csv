@@ -1,5 +1,5 @@
-report_date,id,birthday
-2019-06-30,1234567,1980-01-01
-2019-06-30,2345678,2080-01-01
-2019-06-30,2245678,1980-13-01
-2019-06-30,3456789,
+report_date,name,birthday
+2019-06-30,Sarah Connor,1980-01-01
+2019-06-30,John Connor,2080-01-01
+2019-06-30,Peter Impossible,1980-13-01
+2019-06-30,Mary Nobirthdate,
