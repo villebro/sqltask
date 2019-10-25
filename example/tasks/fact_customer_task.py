@@ -7,13 +7,14 @@ from .base_task import BaseExampleTask
 from sqltask.classes import dq
 from sqltask.classes.exceptions import TooFewRowsException
 from sqltask.classes.sql import LookupSource, SqlDataSource
+from sqltask.classes.table import DqTableContext
 
 
 class FactCustomerTask(BaseExampleTask):
     def __init__(self, report_date: date):
         super().__init__(report_date=report_date)
 
-        self.add_table(
+        self.add_table(DqTableContext(
             name="fact_customer",
             engine_context=self.ENGINE_TARGET,
             columns=[
@@ -27,7 +28,7 @@ class FactCustomerTask(BaseExampleTask):
             comment="The customer table",
             timestamp_column_name="etl_timestamp",
             batch_params={"report_date": report_date},
-        )
+        ))
         self.add_data_source(SqlDataSource.create(
             name="main",
             sql="""
@@ -123,8 +124,8 @@ WHERE start_date <= :report_date
                 )
             row["sector_code"] = sector_code
 
-            self.add_row(row)
+            row.add_row()
 
     def validate(self):
-        if len(self._output_rows["fact_customer"]) < 2:
+        if len(self.get_table_context("fact_customer").output_rows) < 2:
             raise TooFewRowsException("Less than 2 rows")

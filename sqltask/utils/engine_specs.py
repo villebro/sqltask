@@ -4,7 +4,7 @@ import logging
 import tempfile
 from typing import Any, Dict, List
 
-from sqltask.classes.common import TableContext
+from sqltask.classes.table import TableContext
 
 
 def create_tmp_csv(table_context: TableContext,

@@ -1,11 +1,10 @@
 from enum import Enum
 import logging
-from typing import Any, Dict, List, Optional, TYPE_CHECKING, Sequence
+from typing import Any, Dict, List, Optional, Sequence
 
 from sqlalchemy.engine.url import URL
 from sqlalchemy.sql import text
-if TYPE_CHECKING:
-    from sqltask.classes.common import TableContext
+from sqltask.classes.table import TableContext
 
 log = logging
 
@@ -22,15 +21,16 @@ class BaseEngineSpec:
     """
     engine: Optional[str] = None
     default_upload_type = UploadType.SQL_INSERT
-    supported_uploads: Sequence[UploadType] = (UploadType.SQL_INSERT,
-                                               UploadType.SQL_INSERT_MULTIROW,
-                                               )
+    supported_uploads: Sequence[UploadType] = (
+        UploadType.SQL_INSERT,
+        UploadType.SQL_INSERT_MULTIROW,
+    )
     supports_column_comments = True
     supports_table_comments = True
     supports_schemas = True
 
     @classmethod
-    def insert_rows(cls, output_rows: List[Dict[str, Any]],
+    def insert_rows(cls,
                     table_context: "TableContext",
                     upload_type: Optional[UploadType] = None) -> None:
         """
@@ -41,6 +41,7 @@ class BaseEngineSpec:
         :param upload_type: If undefined, defaults to whichever ´UploadType` is defined
         in `default_upload_type`.
         """
+        output_rows = table_context.output_rows
         upload_type = upload_type or cls.default_upload_type
         if upload_type == UploadType.SQL_INSERT:
             cls._insert_rows_sql_insert(output_rows, table_context)

@@ -30,8 +30,8 @@ string):
 ### bash
 
 ```bash
-EXPORT SQLTASK_SOURCE="sqlite:///source.db" 
-EXPORT SQLTASK_TARGET="sqlite:///target.db"
+export SQLTASK_SOURCE="sqlite:///source.db" 
+export SQLTASK_TARGET="sqlite:///target.db"
 ```
 
 ### powershell
