@@ -2,10 +2,12 @@
 from datetime import datetime
 import os
 
-from sqltask.classes.file import CsvDataSource
 from sqlalchemy.schema import Column
 from sqlalchemy.types import Date, String
 from .base_task import BaseExampleTask
+
+from sqltask.classes.file import CsvDataSource
+from sqltask.classes.table import TableContext
 
 
 class InitSourceTask(BaseExampleTask):
@@ -13,7 +15,7 @@ class InitSourceTask(BaseExampleTask):
         super().__init__()
 
         # main customer table
-        self.add_table(
+        self.add_table(TableContext(
             name="customers",
             engine_context=self.ENGINE_SOURCE,
             columns=[
@@ -21,9 +23,8 @@ class InitSourceTask(BaseExampleTask):
                 Column("id", String(128), comment="Customer id", primary_key=True),
                 Column("birthday", String(10), comment="Birthdate of customer in unreliable yyyy-mm-dd string format", nullable=True),  # noqa
             ],
-            dq_disable=True,
             comment="The original customer table",
-        )
+        ))
         # csv file containing data
         self.add_data_source(CsvDataSource.create(
             name="customers.csv",
@@ -32,7 +33,7 @@ class InitSourceTask(BaseExampleTask):
         ))
 
         # additional table with sector codes per customer
-        self.add_table(
+        self.add_table(TableContext(
             name="sector_codes",
             engine_context=self.ENGINE_SOURCE,
             columns=[
@@ -41,9 +42,8 @@ class InitSourceTask(BaseExampleTask):
                 Column("id", String(128), comment="Customer id (non-unique)", nullable=False),
                 Column("sector_code", String(10), comment="Sector code of cutomer", nullable=True),
             ],
-            dq_disable=True,
             comment="Sector codes for customers",
-        )
+        ))
         # csv file containing data
         self.add_data_source(CsvDataSource.create(
             name="sector_codes.csv",
@@ -57,7 +57,7 @@ class InitSourceTask(BaseExampleTask):
             row["report_date"] = datetime.strptime(in_row["report_date"], "%Y-%m-%d").date()
             row["id"] = in_row["id"]
             row["birthday"] = in_row["birthday"]
-            self.add_row(row)
+            row.add_row()
 
         for in_row in self.get_data_source("sector_codes.csv"):
             row = self.get_new_row("sector_codes")
@@ -65,4 +65,4 @@ class InitSourceTask(BaseExampleTask):
             row["end_date"] = datetime.strptime(in_row["end_date"], "%Y-%m-%d").date()
             row["id"] = in_row["id"]
             row["sector_code"] = in_row["sector_code"]
-            self.add_row(row)
+            row.add_row()
