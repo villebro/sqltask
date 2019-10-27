@@ -16,6 +16,11 @@ jobs:
       python: 3.7
       dist: xenial
       sudo: true
+      env: TOXENV=isort
+    - language: python
+      python: 3.7
+      dist: xenial
+      sudo: true
       env: TOXENV=py37
     - language: python
       python: 3.8
