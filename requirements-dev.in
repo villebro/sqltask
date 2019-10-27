@@ -1,6 +1,10 @@
+codecov
 flake8
 isort
 mypy
 nose
 pip-tools
+sphinx
+sphinx_autodoc_typehints
+sphinx-rtd-theme
 tox
