@@ -1,9 +1,6 @@
-codecov
 flake8
 isort
 mypy
 nose
 pip-tools
-sphinx
 tox
-
