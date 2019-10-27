@@ -17,6 +17,11 @@ jobs:
       dist: xenial
       sudo: true
       env: TOXENV=py37
+    - language: python
+      python: 3.8
+      dist: xenial
+      sudo: true
+      env: TOXENV=py38
 install:
   - pip install --upgrade pip
   - pip install codecov tox
