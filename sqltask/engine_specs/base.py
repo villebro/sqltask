@@ -1,6 +1,6 @@
 import logging
 from enum import Enum
-from typing import Any, Dict, List, Optional, Sequence
+from typing import Optional, Sequence
 
 from sqlalchemy.engine.url import URL
 from sqlalchemy.schema import Column
@@ -43,7 +43,6 @@ class BaseEngineSpec:
         :param upload_type: If undefined, defaults to whichever ´UploadType` is defined
         in `default_upload_type`.
         """
-        output_rows = table_context.output_rows
         upload_type = upload_type or cls.default_upload_type
         if upload_type == UploadType.SQL_INSERT:
             cls._insert_rows_sql_insert(table_context)
