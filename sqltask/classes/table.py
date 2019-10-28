@@ -50,10 +50,12 @@ class TableContext:
         # Finalize main table context after dq table context is created
         self.name = name
         self.table = table
+        self.schema = schema or engine_context.schema
+        if self.schema != engine_context.schema:
+            engine_context = engine_context.create_new(schema=self.schema)
         self.engine_context = engine_context
         self.batch_params = batch_params or {}
         self.timestamp_column_name = timestamp_column_name
-        self.schema = schema or engine_context.schema
         self.output_rows: List[Dict[str, Any]] = []
 
     def get_new_row(self) -> "OutputRow":

@@ -6,7 +6,7 @@ from sqltask.classes.common import BaseDataSource, Lookup
 from sqltask.classes.sql import LookupSource
 from sqltask.classes.table import OutputRow, TableContext
 
-__version__ = '0.3.0'
+__version__ = '0.3.2'
 
 # initialize logging
 log = logging.getLogger('sqltask')

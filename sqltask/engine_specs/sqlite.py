@@ -1,3 +1,5 @@
+import logging
+
 from sqlalchemy.schema import Column
 
 from sqltask.classes.table import TableContext
@@ -16,6 +18,28 @@ class SqliteEngineSpec(BaseEngineSpec):
                     table_context: TableContext,
                     column_name: Column,
                     ) -> None:
-        # TODO: sqlite doesn't support dropping columns; implement the workaround from
-        # https: // www.techonthenet.com / sqlite / tables / alter_table.php
-        pass
+        """
+        On sqlite, columns must be dropped by renaming the old table, creating a new
+        table and finally selecting values from the old table to the new one.
+
+        :param table_context: Table context whose table to alter
+        :param column_name: column to drop from table scchema
+        """
+        # TODO: this drops all unnecessary columns at once; no need to loop all cols
+        engine = table_context.engine_context.engine
+        metadata = table_context.engine_context.metadata
+        table_name = table_context.table.name
+
+        logging.debug(f"Drop column `{column_name}` from table `{table_name}`")
+        engine.execute(f'ALTER TABLE {table_name} RENAME TO _{table_name}_old')
+        metadata.create_all(tables=[table_context.table])
+        cols = [column.name for column in table_context.table.columns]
+        cols_select = ", ".join(cols)
+        table_context.engine_context.engine.execute(
+            f"INSERT INTO {table_name} ({cols_select}) "
+            f"SELECT {cols_select} "
+            f"FROM _{table_name}_old"
+        )
+        table_context.engine_context.engine.execute(
+            f"DROP TABLE _{table_name}_old"
+        )

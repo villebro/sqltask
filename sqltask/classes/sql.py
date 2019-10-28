@@ -34,8 +34,10 @@ class SqlDataSource(BaseDataSource):
         super().__init__(name)
         self.sql = sql
         self.params = params or {}
-        self.engine_context = engine_context
         self.schema = schema or engine_context.schema
+        if self.schema != engine_context.schema:
+            engine_context = engine_context.create_new(schema=self.schema)
+        self.engine_context = engine_context
 
     def __iter__(self):
         rows = self.engine_context.engine.execute(text(self.sql), self.params)
@@ -66,8 +68,10 @@ class LookupSource(BaseDataSource):
         super().__init__(name)
         self.sql = sql
         self.params = params or {}
-        self.engine_context = engine_context
         self.schema = schema or engine_context.schema
+        if self.schema != engine_context.schema:
+            engine_context = engine_context.create_new(schema=self.schema)
+        self.engine_context = engine_context
         self.keys = keys
 
     def get_lookup(self) -> Lookup:

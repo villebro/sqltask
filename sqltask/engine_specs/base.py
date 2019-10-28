@@ -78,7 +78,9 @@ class BaseEngineSpec:
         if UploadType.SQL_INSERT not in cls.supported_uploads:
             raise Exception(f"SQL INSERT not supported by `{cls.__name__}`")
         with table_context.engine_context.engine.begin() as conn:
-            conn.execute(table_context.table.insert().values(table_context.output_rows))
+            conn.execute(
+                table_context.table.insert().values(table_context.output_rows)
+            )
 
     @classmethod
     def _insert_rows_csv(cls, table_context: "TableContext") -> None:
@@ -101,6 +103,24 @@ class BaseEngineSpec:
             where_clause = ""
         stmt = f"DELETE FROM {table.name}{where_clause}"
         engine.execute(text(stmt), batch_params)
+
+    @classmethod
+    def modify_url(cls, url: URL, schema: Optional[str] = None) -> None:
+        """
+        Modify the url to point to a new schema.
+
+        :param url: SqlAlchemy URL instance
+        :param schema: schema to connect to
+        """
+        database = url.database
+        if not cls.supports_schemas or database is None:
+            return
+        if "/" in database:
+            database = database.split("/")[0]
+        if schema is None:
+            url.database = database
+        else:
+            url.database = database + "/" + schema
 
     @classmethod
     def get_schema_name(cls, url: URL) -> Optional[str]:
