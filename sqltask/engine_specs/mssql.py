@@ -1,5 +1,4 @@
 import os
-from typing import Any, Dict, List
 
 from sqltask.classes.table import TableContext
 from sqltask.engine_specs.base import BaseEngineSpec, UploadType
@@ -17,17 +16,14 @@ class MssqlEngineSpec(BaseEngineSpec):
     supports_schemas = True
 
     @classmethod
-    def _insert_rows_csv(cls, output_rows: List[Dict[str, Any]],
-                         table_context: TableContext) -> None:
+    def _insert_rows_csv(cls, table_context: TableContext) -> None:
         """
         MSSQL bulk loading is done by exporting the data to CSV and using the
         cursor `copy_from` method.
 
-        :param output_rows: rows to upload
         :param table_context: the target table to upload into
         """
-        # TODO: WIP, requires uploading to server first.
-        file_path = create_tmp_csv(table_context, output_rows)
+        file_path = create_tmp_csv(table_context)
 #        engine = table_context.engine_context.engine
 #        columns = [column.name for column in table_context.table.columns]
 

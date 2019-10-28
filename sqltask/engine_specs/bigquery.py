@@ -1,10 +1,11 @@
 import logging
 import os
-from typing import Any, Dict, List
+from typing import Optional
 
 from google.cloud import bigquery
-from sqltask.engine_specs.base import BaseEngineSpec
-from sqltask.common import TableContext
+
+from sqltask.classes.table import TableContext
+from sqltask.engine_specs.base import BaseEngineSpec, UploadType
 from sqltask.utils.engine_specs import create_tmp_csv
 
 
@@ -15,23 +16,28 @@ class BigQueryEngineSpec(BaseEngineSpec):
     supports_schemas = False
 
     @classmethod
-    def insert_rows(cls, output_rows: List[Dict[str, Any]],
-                    table_context: TableContext) -> None:
+    def _insert_rows_csv(cls, table_context: "TableContext") -> None:
+        cls._insert_rows(table_context, UploadType.CSV)
+
+    @classmethod
+    def _insert_rows(cls, table_context: TableContext,
+                     upload_type: Optional[UploadType] = None) -> None:
         """
         BigQuery bulk loading is done by exporting the data to CSV and using the
         `google-cloud-bigquery` library to upload data.
 
-        :param output_rows: rows to upload
         :param table_context: the target table to upload into
+        :param upload_type: If undefined, defaults to whichever ´UploadType` is defined
+        in `default_upload_type`.
         """
-        file_path = create_tmp_csv(table_context, output_rows)
+        file_path = create_tmp_csv(table_context)
         client = bigquery.Client()
         database = table_context.engine_context.engine.url.database
         schema = table_context.schema
         table_id = table_context.table.name
 
-        dataset_ref = client.dataset(file_path)
-        table_ref = dataset_ref.table(table_id)
+        # dataset_ref = client.dataset(file_path)
+        # table_ref = dataset_ref.table(table_id)
 
         job_config = bigquery.LoadJobConfig()
         job_config.source_format = bigquery.SourceFormat.CSV

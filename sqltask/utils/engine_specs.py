@@ -2,25 +2,20 @@ import csv
 import logging
 import tempfile
 from datetime import datetime
-from typing import Any, Dict, List
 
 from sqltask.classes.table import TableContext
 
 
-def create_tmp_csv(table_context: TableContext,
-                   output_rows: List[Dict[str, Any]],
-                   delimiter: str = "\t",
-                   ) -> str:
+def create_tmp_csv(table_context: TableContext, delimiter: str = "\t") -> str:
     """
     Creates a temporary csv file based on `output_rows`.
 
     :param table_context: Table context based on which the csv columns will be based.
-    :param output_rows: Collection of rows to export.
     :param delimiter: Delmiter to use when exporting csv.
     :return: the path of the created temporary csv file.
     """
     csv_rows = []
-    for row in output_rows:
+    for row in table_context.output_rows:
         csv_row = []
         for column in table_context.table.columns:
             csv_row.append(row[column.name])

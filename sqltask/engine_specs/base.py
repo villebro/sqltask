@@ -3,6 +3,7 @@ from enum import Enum
 from typing import Any, Dict, List, Optional, Sequence
 
 from sqlalchemy.engine.url import URL
+from sqlalchemy.schema import Column
 from sqlalchemy.sql import text
 
 from sqltask.classes.table import TableContext
@@ -45,18 +46,18 @@ class BaseEngineSpec:
         output_rows = table_context.output_rows
         upload_type = upload_type or cls.default_upload_type
         if upload_type == UploadType.SQL_INSERT:
-            cls._insert_rows_sql_insert(output_rows, table_context)
+            cls._insert_rows_sql_insert(table_context)
         elif upload_type == UploadType.SQL_INSERT_MULTIROW:
-            cls._insert_rows_sql_insert_multirow(output_rows, table_context)
+            cls._insert_rows_sql_insert_multirow(table_context)
         elif upload_type == UploadType.CSV:
-            cls._insert_rows_csv(output_rows, table_context)
+            cls._insert_rows_csv(table_context)
         else:
             raise NotImplementedError(f"Unsupported upload type: {upload_type}")
 
     @classmethod
     def _insert_rows_sql_insert(cls,
-                                output_rows: List[Dict[str, Any]],
-                                table_context: "TableContext") -> None:
+                                table_context: "TableContext"
+                                ) -> None:
         """
         Insert rows using standard insert statements. Not very performant, but mostly
         universally supported.
@@ -64,13 +65,13 @@ class BaseEngineSpec:
         if UploadType.SQL_INSERT not in cls.supported_uploads:
             raise Exception(f"SQL INSERT not supported by `{cls.__name__}`")
         with table_context.engine_context.engine.begin() as conn:
-            conn.execute(table_context.table.insert(), *output_rows)
+            conn.execute(table_context.table.insert(), *table_context.output_rows)
 
     @classmethod
     def _insert_rows_sql_insert_multirow(cls,
-                                         output_rows: List[Dict[str, Any]],
                                          table_context: "TableContext",
-                                         chunksize: int = 5000) -> None:
+                                         chunksize: int = 5000
+                                         ) -> None:
         """
         Insert rows using standard insert statements. Not very performant, but mostly
         universally supported.
@@ -78,26 +79,22 @@ class BaseEngineSpec:
         if UploadType.SQL_INSERT not in cls.supported_uploads:
             raise Exception(f"SQL INSERT not supported by `{cls.__name__}`")
         with table_context.engine_context.engine.begin() as conn:
-            conn.execute(table_context.table.insert().values(output_rows))
+            conn.execute(table_context.table.insert().values(table_context.output_rows))
 
     @classmethod
-    def _insert_rows_csv(cls, output_rows: List[Dict[str, Any]],
-                         table_context: "TableContext") -> None:
+    def _insert_rows_csv(cls, table_context: "TableContext") -> None:
         raise NotImplementedError(f"`{cls.__name__}` does not support CSV upload")
 
     @classmethod
-    def truncate_rows(cls, table_context: "TableContext",
-                      batch_params: Dict[str, Any]) -> None:
+    def truncate_rows(cls, table_context: "TableContext") -> None:
         """
         Delete old rows from target table that match the execution parameters.
 
-        :param table: Output table
-        :param execution_columns: execution
-        :param params:
-        :return:
+        :param table_context: Output table
         """
         table = table_context.table
         engine = table_context.engine_context.engine
+        batch_params = table_context.batch_params
         if batch_params:
             where_clause = " WHERE " + " AND ".join(
                 [f"{col} = :{col}" for col in batch_params.keys()])
@@ -120,3 +117,38 @@ class BaseEngineSpec:
         if cls.supports_schemas and database is not None and "/" in database:
             schema = database.split("/")[1]
         return schema
+
+    @classmethod
+    def add_column(cls,
+                   table_context: TableContext,
+                   column: Column,
+                   ) -> None:
+        """
+        Add a column to target table
+
+        :param table_context: table which to alter
+        :param column: column to be added
+        :return:
+        """
+        table_name = table_context.table.name
+        logging.debug(f"Add column `{column.name}` to table `{table_name}`")
+        stmt = f'ALTER TABLE {table_name} ADD COLUMN ' \
+               f'{column.name} {str(column.type)}'
+        table_context.engine_context.engine.execute(stmt)
+
+    @classmethod
+    def drop_column(cls,
+                    table_context: TableContext,
+                    column_name: Column,
+                    ) -> None:
+        """
+        Add a column to target table
+
+        :param table_context: table which to alter
+        :param column_name: column to drop
+        :return:
+        """
+        table_name = table_context.table.name
+        logging.debug(f"Drop column `{column_name}` from table `{table_name}`")
+        stmt = f'ALTER TABLE {table_name} DROP COLUMN {column_name}'
+        table_context.engine_context.engine.execute(stmt)
