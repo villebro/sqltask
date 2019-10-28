@@ -69,7 +69,7 @@ class TableContext:
         """
         Delete old rows from target table that match batch parameters.
         """
-        self.engine_context.engine_spec.truncate_rows(self, self.batch_params)
+        self.engine_context.engine_spec.truncate_rows(self)
 
     def insert_rows(self) -> None:
         """
@@ -90,10 +90,13 @@ class TableContext:
             cols_existing = [col['name'] for col in inspector.get_columns(table.name)]
             for column in table.columns:
                 if column.name not in cols_existing:
-                    logging.debug(f"Add column `{column.name}` to table `{table.name}`")
-                    stmt = f'ALTER TABLE {table.name} ADD COLUMN ' \
-                           f'{column.name} {str(column.type)}'
-                    engine.execute(stmt)
+                    self.engine_context.engine_spec.add_column(self, column)
+
+            # remove redundant columns
+            cols_new = {col.name: col for col in table.columns}
+            for column_name in cols_existing:
+                if column_name not in cols_new:
+                    self.engine_context.engine_spec.drop_column(self, column_name)
         else:
             # table doesn't exist, create new
             logging.debug(f"Create new table `{table.name}`")

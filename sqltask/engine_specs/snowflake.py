@@ -1,5 +1,4 @@
 import os
-from typing import Any, Dict, List
 
 from sqltask.classes.table import TableContext
 from sqltask.engine_specs.base import BaseEngineSpec, UploadType
@@ -15,16 +14,14 @@ class SnowflakeEngineSpec(BaseEngineSpec):
     default_upload_type = UploadType.CSV
 
     @classmethod
-    def _insert_rows_csv(cls, output_rows: List[Dict[str, Any]],
-                         table_context: TableContext) -> None:
+    def _insert_rows_csv(cls, table_context: TableContext) -> None:
         """
         Snowflake bulk loading is done by exporting the data to CSV and using the
         PUT + COPY statement to upload the data.
 
-        :param output_rows: rows to upload
         :param table_context: the target table to upload into
         """
-        file_path = create_tmp_csv(table_context, output_rows)
+        file_path = create_tmp_csv(table_context)
         table = table_context.table
         engine = table_context.engine_context.engine
 
