@@ -2,8 +2,6 @@ import logging
 import os
 from typing import Optional
 
-from google.cloud import bigquery
-
 from sqltask.classes.table import TableContext
 from sqltask.engine_specs.base import BaseEngineSpec, UploadType
 from sqltask.utils.engine_specs import create_tmp_csv
@@ -30,6 +28,8 @@ class BigQueryEngineSpec(BaseEngineSpec):
         :param upload_type: If undefined, defaults to whichever ´UploadType` is defined
         in `default_upload_type`.
         """
+        from google.cloud import bigquery
+
         file_path = create_tmp_csv(table_context)
         client = bigquery.Client()
         database = table_context.engine_context.engine.url.database
