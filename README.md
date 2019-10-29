@@ -28,7 +28,7 @@ e.g. calling third party libraries or storing state from previous rows.
 Sqltask supports all databases with a SqlAlchemy
 [dialect](https://docs.sqlalchemy.org/en/13/dialects/), with
 dedicated support for the following engines:
-- Google BigQuery (experimental)
+- Google BigQuery
 - MS SQL Server (experimental)
 - Postgres
 - Sqlite

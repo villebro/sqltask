@@ -30,6 +30,7 @@ class BaseEngineSpec:
     supports_column_comments = True
     supports_table_comments = True
     supports_schemas = True
+    empty_where_clause = ""
 
     @classmethod
     def insert_rows(cls,
@@ -100,7 +101,7 @@ class BaseEngineSpec:
             where_clause = " WHERE " + " AND ".join(
                 [f"{col} = :{col}" for col in batch_params.keys()])
         else:
-            where_clause = ""
+            where_clause = cls.empty_where_clause
         stmt = f"DELETE FROM {table.name}{where_clause}"
         engine.execute(text(stmt), batch_params)
 
