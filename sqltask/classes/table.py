@@ -20,6 +20,7 @@ class TableContext:
             engine_context: "EngineContext",
             columns: List[Column],
             comment: Optional[str] = None,
+            database: Optional[str] = None,
             schema: Optional[str] = None,
             batch_params: Optional[Dict[str, Any]] = None,
             timestamp_column_name: Optional[str] = None,
@@ -32,6 +33,8 @@ class TableContext:
         :param engine_context: engine to bind table to.
         :param columns: All columns in table.
         :param comment: Table comment.
+        :param database: Database to use. If left unspecified, falls back to the database
+        provided by the engine context
         :param schema: Schema to use. If left unspecified, falls back to the schema
         provided by the engine context
         :param batch_params: Mapping between column names and values that are used to
@@ -50,10 +53,10 @@ class TableContext:
         # Finalize main table context after dq table context is created
         self.name = name
         self.table = table
+        self.database = database or engine_context.database
         self.schema = schema or engine_context.schema
-        if self.schema != engine_context.schema:
-            engine_context = engine_context.create_new(schema=self.schema)
-        self.engine_context = engine_context
+        self.engine_context = engine_context.create_new(
+            database=self.database, schema=self.schema)
         self.batch_params = batch_params or {}
         self.timestamp_column_name = timestamp_column_name
         self.output_rows: List[Dict[str, Any]] = []
