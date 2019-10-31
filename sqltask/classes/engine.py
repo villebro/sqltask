@@ -16,15 +16,20 @@ class EngineContext:
         self.name = name
         self.engine = create_engine(url)
         self.engine_spec = get_engine_spec(self.engine.name)
-        self.database, self.schema = self.engine_spec.get_url_params(self.engine.url)
+        url_params = self.engine_spec.get_url_params(self.engine.url)
+        self.database, self.schema = url_params
         self.metadata_kwargs = metadata_kwargs or {}
         self.metadata = MetaData(
             bind=self.engine,
-            schema=self.schema,
+            schema=url_params.schema,
             **self.metadata_kwargs,
         )
+        if url_params.database and url_params.schema:
+            url_str = url_params.database + "/" + url_params.schema
+        else:
+            url_str = url_params.database or "<Undefined>"
         logging.info(f"Created engine `{name}` using "
-                     f"`{self.engine_spec.__name__}` on schema `{self.schema}`")
+                     f"`{self.engine_spec.__name__}` on `{url_str}`")
 
     def create_new(self,
                    database: Optional[str],

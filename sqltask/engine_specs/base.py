@@ -1,11 +1,12 @@
 import logging
 from enum import Enum
-from typing import Optional, Sequence, Tuple
+from typing import Optional, Sequence
 
 from sqlalchemy.engine.url import URL
 from sqlalchemy.schema import Column
 from sqlalchemy.sql import text
 
+from sqltask.classes.common import UrlParams
 from sqltask.classes.table import TableContext
 
 log = logging
@@ -111,7 +112,8 @@ class BaseEngineSpec:
         Modify the url to point to a new schema.
 
         :param url: SqlAlchemy URL instance
-        :param url_params: URL params to point the new URL to
+        :param database: database to point the new URL to
+        :param schema: schema to point the new URL to
         """
         database_current = url.database
         schema_current = None
@@ -120,9 +122,9 @@ class BaseEngineSpec:
         if "/" in database_current:
             database_current, schema_current = database.split("/")
 
-        if database and database != database_current:
+        if database is None:
             database = database_current
-        if schema and schema != schema_current:
+        if schema is None:
             schema = schema_current
 
         if schema is None:
@@ -131,7 +133,7 @@ class BaseEngineSpec:
             url.database = database + "/" + schema
 
     @classmethod
-    def get_url_params(cls, url: URL) -> Tuple[Optional[str], Optional[str]]:
+    def get_url_params(cls, url: URL) -> UrlParams:
         """
         Extract schema name from URL instance. Assumes that the schema name is what
         cmes after a slash in the database name, e.g. `database/schema`.
@@ -143,7 +145,7 @@ class BaseEngineSpec:
         database = url.database
         if cls.supports_schemas and database is not None and "/" in database:
             database, schema = database.split("/")
-        return database, schema
+        return UrlParams(database=database, schema=schema)
 
     @classmethod
     def add_column(cls,
