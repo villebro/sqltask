@@ -6,6 +6,7 @@ from sqlalchemy.engine.url import URL
 from sqlalchemy.schema import Column
 from sqlalchemy.sql import text
 
+from sqltask.classes.common import UrlParams
 from sqltask.classes.table import TableContext
 
 log = logging
@@ -106,25 +107,33 @@ class BaseEngineSpec:
         engine.execute(text(stmt), batch_params)
 
     @classmethod
-    def modify_url(cls, url: URL, schema: Optional[str] = None) -> None:
+    def modify_url(cls, url: URL, database: Optional[str], schema: Optional[str]) -> None:
         """
         Modify the url to point to a new schema.
 
         :param url: SqlAlchemy URL instance
-        :param schema: schema to connect to
+        :param database: database to point the new URL to
+        :param schema: schema to point the new URL to
         """
-        database = url.database
+        database_current = url.database
+        schema_current = None
         if not cls.supports_schemas or database is None:
-            return
-        if "/" in database:
-            database = database.split("/")[0]
+            return None
+        if "/" in database_current:
+            database_current, schema_current = database.split("/")
+
+        if database is None:
+            database = database_current
+        if schema is None:
+            schema = schema_current
+
         if schema is None:
             url.database = database
         else:
             url.database = database + "/" + schema
 
     @classmethod
-    def get_schema_name(cls, url: URL) -> Optional[str]:
+    def get_url_params(cls, url: URL) -> UrlParams:
         """
         Extract schema name from URL instance. Assumes that the schema name is what
         cmes after a slash in the database name, e.g. `database/schema`.
@@ -135,8 +144,8 @@ class BaseEngineSpec:
         schema = None
         database = url.database
         if cls.supports_schemas and database is not None and "/" in database:
-            schema = database.split("/")[1]
-        return schema
+            database, schema = database.split("/")
+        return UrlParams(database=database, schema=schema)
 
     @classmethod
     def add_column(cls,

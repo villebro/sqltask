@@ -17,7 +17,8 @@ class SqlDataSource(BaseDataSource):
             sql: str,
             params: Dict[str, Any],
             engine_context: "EngineContext",
-            schema: str = None,
+            database: Optional[str] = None,
+            schema: Optional[str] = None,
     ):
         """
         :param name: name of data source
@@ -25,19 +26,22 @@ class SqlDataSource(BaseDataSource):
         `WHERE dt <= :batch_date`
         :param params: mapping between parameter keys and values, e.g.
         `{"batch_date": date(2010, 1, 1)}`
+        :param database: database to use when executing query. Uses database defined
+        in sql_engine if left undefined.
         :param schema: schema to use when executing query. Uses schema defined
         in sql_engine if left undefined.
         :param engine_context: engine used to execute the query.
         """
         params = params or {}
+        database = database or engine_context.database
         schema = schema or engine_context.schema
         super().__init__(name)
         self.sql = sql
         self.params = params or {}
+        self.database = database or engine_context.database
         self.schema = schema or engine_context.schema
-        if self.schema != engine_context.schema:
-            engine_context = engine_context.create_new(schema=self.schema)
-        self.engine_context = engine_context
+        self.engine_context = engine_context.create_new(
+            database=self.database, schema=self.schema)
 
     def __iter__(self):
         rows = self.engine_context.engine.execute(text(self.sql), self.params)
@@ -51,6 +55,7 @@ class LookupSource(BaseDataSource):
                  sql: str,
                  params: Dict[str, Any],
                  engine_context: "EngineContext",
+                 database: Optional[str] = None,
                  schema: Optional[str] = None,
                  keys: int = 1,
                  ):
@@ -60,18 +65,20 @@ class LookupSource(BaseDataSource):
         `WHERE dt <= :batch_date`
         :param params: mapping between parameter keys and values, e.g.
         `{"batch_date": date(2010, 1, 1)}`
-        :param schema: schema to use when executing query. Uses schema defined
-        in sql_engine if left undefined.
+        :param database: Database to use. If left unspecified, falls back to the database
+        provided by the engine context
+        :param schema: Schema to use. If left unspecified, falls back to the schema
+        provided by the engine context
         :param keys: number of keys in dict key.
         :param engine_context: engine used to execute the query.
         """
         super().__init__(name)
         self.sql = sql
         self.params = params or {}
+        self.database = database or engine_context.database
         self.schema = schema or engine_context.schema
-        if self.schema != engine_context.schema:
-            engine_context = engine_context.create_new(schema=self.schema)
-        self.engine_context = engine_context
+        self.engine_context = engine_context.create_new(
+            database=self.database, schema=self.schema)
         self.keys = keys
 
     def get_lookup(self) -> Lookup:
