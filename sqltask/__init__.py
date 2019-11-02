@@ -1,18 +1,14 @@
 import logging
-import os
 from typing import Any, Dict
 
-from sqltask.classes.common import BaseDataSource, Lookup
-from sqltask.classes.sql import LookupSource
+from sqltask.classes.common import BaseDataSource
+from sqltask.classes.lookup import Lookup
 from sqltask.classes.table import OutputRow, TableContext
 
-__version__ = '0.3.2'
+__version__ = '0.4.0'
 
 # initialize logging
-log = logging.getLogger('sqltask')
-log_level = os.getenv("SQLTASK_LOG_LEVEL")
-if log_level:
-    log.setLevel(log_level)
+logger = logging.getLogger(__name__)
 
 
 class SqlTask:
@@ -24,7 +20,7 @@ class SqlTask:
         """
         self._tables: Dict[str, TableContext] = {}
         self._data_sources: Dict[str, BaseDataSource] = {}
-        self._lookup_sources: Dict[str, LookupSource] = {}
+        self._lookups: Dict[str, Lookup] = {}
         self.batch_params: Dict[str, Any] = batch_params or {}
 
     def add_table(self, table_context: TableContext) -> None:
@@ -33,6 +29,8 @@ class SqlTask:
 
         :param table_context: a table context to be added to the task
         """
+        if table_context.name is None:
+            raise Exception("Cannot add table with undefined name.")
         self._tables[table_context.name] = table_context
 
     def get_table_context(self, name: str) -> TableContext:
@@ -79,15 +77,19 @@ class SqlTask:
 
         :param data_source: an instance of base class BaseDataSource
         """
+        if data_source.name is None:
+            raise Exception("Cannot add data source with undefined name")
         self._data_sources[data_source.name] = data_source
 
-    def add_lookup_source(self, lookup_source: LookupSource) -> None:
+    def add_lookup(self, lookup: Lookup) -> None:
         """
         Add a data source that can be iterated over.
 
-        :param lookup_source: an instance of base class LookupSource
+        :param lookup: an instance of base class Lookup
         """
-        self._lookup_sources[lookup_source.name] = lookup_source
+        if lookup.name is None:
+            raise Exception("Cannot add data source with undefined name")
+        self._lookups[lookup.name] = lookup
 
     def get_data_source(self, name: str) -> BaseDataSource:
         """
@@ -98,7 +100,7 @@ class SqlTask:
 
         :return: The DataSource instance that can be iterated over
         """
-        log.debug(f"Retrieving source query `{name}`")
+        logger.debug(f"Retrieving source query `{name}`")
         data_source = self._data_sources.get(name)
         if data_source is None:
             raise Exception(f"Data source `{data_source}` not found")
@@ -114,10 +116,10 @@ class SqlTask:
 
         :return: A lookup, which can be a single or
         """
-        lookup = self._lookup_sources.get(name)
+        lookup = self._lookups.get(name)
         if lookup is None:
             raise Exception(f"Lookup `{name}` not found")
-        return lookup.get_lookup()
+        return lookup
 
     def insert_rows(self) -> None:
         """
@@ -142,19 +144,19 @@ class SqlTask:
             table_context.migrate_schema()
 
     def execute_migration(self):
-        log.debug("Start schema migrate")
+        logger.debug("Start schema migrate")
         self.migrate_schemas()
 
     def execute_etl(self):
-        log.debug(f"Start transform")
+        logger.debug(f"Start transform")
         self.transform()
-        log.debug(f"Start validate")
+        logger.debug(f"Start validate")
         self.validate()
-        log.debug(f"Start delete")
+        logger.debug(f"Start delete")
         self.delete_rows()
-        log.debug(f"Start insert")
+        logger.debug(f"Start insert")
         self.insert_rows()
-        log.debug(f"Finish etl")
+        logger.debug(f"Finish etl")
 
     def execute(self):
         self.execute_migration()

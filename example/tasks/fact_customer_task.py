@@ -5,8 +5,9 @@ from sqlalchemy.schema import Column
 from sqlalchemy.types import Date, DateTime, Integer, String
 
 from sqltask.classes import dq
+from sqltask.classes.lookup import Lookup
 from sqltask.classes.exceptions import TooFewRowsException
-from sqltask.classes.sql import LookupSource, SqlDataSource
+from sqltask.classes.sql import SqlDataSource
 from sqltask.classes.table import DqTableContext
 
 from .base_task import BaseExampleTask
@@ -48,18 +49,20 @@ WHERE report_date = :report_date
         ))
 
         # Define a lookup source used for enriching the main source query
-        self.add_lookup_source(LookupSource(
+        self.add_lookup(Lookup(
             name="sector_code",
-            sql="""
+            keys=["name"],
+            data_source=SqlDataSource(
+                sql="""
 SELECT name,
        sector_code
 FROM sector_codes
 WHERE start_date <= :report_date
   AND end_date > :report_date
-            """,
-            params={"report_date": report_date},
-            engine_context=self.ENGINE_SOURCE,
-        ))
+                """,
+                params={"report_date": report_date},
+                engine_context=self.ENGINE_SOURCE,
+            )))
 
     def transform(self) -> None:
         report_date = self.batch_params["report_date"]
@@ -120,7 +123,7 @@ WHERE start_date <= :report_date
             row["age"] = age
 
             # sector_code
-            sector_code = sector_code_lookup.get(customer_name)
+            sector_code = sector_code_lookup.get(customer_name).get("sector_code")
             if sector_code is None:
                 row.log_dq(
                     column_name="sector_code",

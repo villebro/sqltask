@@ -1,7 +1,7 @@
 import csv
 from typing import List
 
-from sqltask.classes.common import BaseDataSource, Lookup
+from sqltask.classes.common import BaseDataSource
 
 
 class CsvDataSource(BaseDataSource):
@@ -36,4 +36,4 @@ class CsvDataSource(BaseDataSource):
             next(csvreader)
             for in_row in csvreader:
                 row_dict = {self.columns[i]: col for i, col in enumerate(in_row)}
-                yield Lookup(self, row_dict)
+                yield row_dict
