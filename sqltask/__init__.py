@@ -1,9 +1,9 @@
 import logging
 from typing import Any, Dict
 
-from sqltask.classes.common import BaseDataSource
-from sqltask.classes.lookup import Lookup
-from sqltask.classes.table import OutputRow, TableContext
+from sqltask.base.row_source import BaseRowSource
+from sqltask.base.lookup_source import BaseLookupSource
+from sqltask.base.table import OutputRow, TableContext
 
 __version__ = '0.4.0'
 
@@ -19,8 +19,8 @@ class SqlTask:
         :param batch_params: Mapping from batch column name to value
         """
         self._tables: Dict[str, TableContext] = {}
-        self._data_sources: Dict[str, BaseDataSource] = {}
-        self._lookups: Dict[str, Lookup] = {}
+        self._row_sources: Dict[str, BaseRowSource] = {}
+        self._lookups: Dict[str, BaseLookupSource] = {}
         self.batch_params: Dict[str, Any] = batch_params or {}
 
     def add_table(self, table_context: TableContext) -> None:
@@ -71,27 +71,27 @@ class SqlTask:
             raise Exception(f"Undefined table context: `{name}`")
         return OutputRow(table_context)
 
-    def add_data_source(self, data_source: BaseDataSource) -> None:
+    def add_row_source(self, row_source: BaseRowSource) -> None:
         """
         Add a data source that can be iterated over.
 
-        :param data_source: an instance of base class BaseDataSource
+        :param row_source: an instance of base class BaseDataSource
         """
-        if data_source.name is None:
+        if row_source.name is None:
             raise Exception("Cannot add data source with undefined name")
-        self._data_sources[data_source.name] = data_source
+        self._row_sources[row_source.name] = row_source
 
-    def add_lookup(self, lookup: Lookup) -> None:
+    def add_lookup_source(self, lookup_source: BaseLookupSource) -> None:
         """
         Add a data source that can be iterated over.
 
-        :param lookup: an instance of base class Lookup
+        :param lookup_source: an instance of base class LookupSource
         """
-        if lookup.name is None:
+        if lookup_source.name is None:
             raise Exception("Cannot add data source with undefined name")
-        self._lookups[lookup.name] = lookup
+        self._lookups[lookup_source.name] = lookup_source
 
-    def get_data_source(self, name: str) -> BaseDataSource:
+    def get_row_source(self, name: str) -> BaseRowSource:
         """
         Get results for a predefined query.
 
@@ -101,12 +101,12 @@ class SqlTask:
         :return: The DataSource instance that can be iterated over
         """
         logger.debug(f"Retrieving source query `{name}`")
-        data_source = self._data_sources.get(name)
-        if data_source is None:
-            raise Exception(f"Data source `{data_source}` not found")
-        return data_source
+        row_source = self._row_sources.get(name)
+        if row_source is None:
+            raise Exception(f"Data source `{row_source}` not found")
+        return row_source
 
-    def get_lookup(self, name: str) -> Lookup:
+    def get_lookup_source(self, name: str) -> BaseLookupSource:
         """
         Get results for a predefined lookup query. The results for are cached when the
         method is called for the first time.

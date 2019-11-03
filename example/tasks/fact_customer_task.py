@@ -4,11 +4,10 @@ from datetime import date, datetime
 from sqlalchemy.schema import Column
 from sqlalchemy.types import Date, DateTime, Integer, String
 
-from sqltask.classes import dq
-from sqltask.classes.lookup import Lookup
-from sqltask.classes.exceptions import TooFewRowsException
-from sqltask.classes.sql import SqlDataSource
-from sqltask.classes.table import DqTableContext
+from sqltask.base import dq
+from sqltask.base.exceptions import TooFewRowsException
+from sqltask.sources.sql import SqlRowSource, SqlLookupSource
+from sqltask.base.table import DqTableContext
 
 from .base_task import BaseExampleTask
 
@@ -36,7 +35,7 @@ class FactCustomerTask(BaseExampleTask):
         ))
 
         # Define the main query used to populate the target table
-        self.add_data_source(SqlDataSource(
+        self.add_row_source(SqlRowSource(
             name="main",
             sql="""
 SELECT name,
@@ -49,25 +48,24 @@ WHERE report_date = :report_date
         ))
 
         # Define a lookup source used for enriching the main source query
-        self.add_lookup(Lookup(
+        self.add_lookup_source(SqlLookupSource(
             name="sector_code",
             keys=["name"],
-            data_source=SqlDataSource(
-                sql="""
+            sql="""
 SELECT name,
        sector_code
 FROM sector_codes
 WHERE start_date <= :report_date
   AND end_date > :report_date
-                """,
-                params={"report_date": report_date},
-                engine_context=self.ENGINE_SOURCE,
-            )))
+            """,
+            params={"report_date": report_date},
+            engine_context=self.ENGINE_SOURCE,
+        ))
 
     def transform(self) -> None:
         report_date = self.batch_params["report_date"]
-        sector_code_lookup = self.get_lookup("sector_code")
-        for in_row in self.get_data_source("main"):
+        sector_code_lookup = self.get_lookup_source("sector_code")
+        for in_row in self.get_row_source("main"):
             row = self.get_new_row("fact_customer")
 
             # customer_name
@@ -123,7 +121,8 @@ WHERE start_date <= :report_date
             row["age"] = age
 
             # sector_code
-            sector_code = sector_code_lookup.get(customer_name).get("sector_code")
+            sector_code = sector_code_lookup.get(name=customer_name).get("sector_code")
+
             if sector_code is None:
                 row.log_dq(
                     column_name="sector_code",

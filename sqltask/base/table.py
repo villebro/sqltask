@@ -7,10 +7,10 @@ import sqlalchemy as sa
 from sqlalchemy.schema import Column, Table
 from sqlalchemy.types import String
 
-from sqltask.classes import dq
+from sqltask.base import dq
 
 if TYPE_CHECKING:
-    from sqltask.classes.engine import EngineContext
+    from sqltask.base.engine import EngineContext
 
 
 class TableContext:

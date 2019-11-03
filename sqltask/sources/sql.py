@@ -1,17 +1,20 @@
 import logging
-from collections import namedtuple
-from typing import Iterator, TYPE_CHECKING, Any, Dict, Optional
+from typing import Any, Dict, Iterator, Optional, Sequence, TYPE_CHECKING
 
 from sqlalchemy.engine import RowProxy
 from sqlalchemy.sql import text
 
-from sqltask.classes.common import BaseDataSource
+from sqltask.base.row_source import BaseRowSource
+from sqltask.base.lookup_source import BaseLookupSource
 
 if TYPE_CHECKING:
-    from sqltask.classes.engine import EngineContext
+    from sqltask.base.engine import EngineContext
 
 
-class SqlDataSource(BaseDataSource):
+logger = logging.getLogger(__name__)
+
+
+class SqlRowSource(BaseRowSource):
     def __init__(
             self,
             sql: str,
@@ -46,6 +49,31 @@ class SqlDataSource(BaseDataSource):
         )
 
     def __iter__(self) -> Iterator[RowProxy]:
+        logger.info(f"Executing SQL query for sql row source "
+                    f"{self.name or '<undefined>'}")
         rows = self.engine_context.engine.execute(text(self.sql), self.params)
         for row in rows:
             yield row
+
+
+class SqlLookupSource(BaseLookupSource):
+    """
+    A convenience wrapper that creates a BaseLookupSource with a SqlRowSource as the
+    data source.
+    """
+    def __init__(self,
+                 name: str,
+                 sql: str,
+                 params: Dict[str, Any],
+                 engine_context: "EngineContext",
+                 keys: Sequence[str],
+                 database: Optional[str] = None,
+                 schema: Optional[str] = None,
+                 ):
+        row_source = SqlRowSource(
+            sql=sql,
+            params=params,
+            engine_context=engine_context,
+            database=database,
+            schema=schema)
+        super().__init__(name=name, row_source=row_source, keys=keys)

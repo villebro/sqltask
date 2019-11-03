@@ -1,16 +1,19 @@
 import csv
-from typing import List
+from typing import List, Optional, Sequence
 
-from sqltask.classes.common import BaseDataSource
+from sqltask.base.row_source import BaseRowSource
+from sqltask.base.lookup_source import BaseLookupSource
 
 
-class CsvDataSource(BaseDataSource):
+class CsvRowSource(BaseRowSource):
     """
-    Data source that reads from a CSV file.
-
+    Row source that reads from a CSV file.
     """
 
-    def __init__(self, name: str, file_path: str, delimiter: str):
+    def __init__(self,
+                 file_path: str,
+                 name: Optional[str] = None,
+                 delimiter: str = ","):
         """
         :param name: name of data source.
         :param file_path: path to the csv file.
@@ -37,3 +40,14 @@ class CsvDataSource(BaseDataSource):
             for in_row in csvreader:
                 row_dict = {self.columns[i]: col for i, col in enumerate(in_row)}
                 yield row_dict
+
+
+class CsvLookupSource(BaseLookupSource):
+    def __init__(self,
+                 name: str,
+                 file_path: str,
+                 keys: Sequence[str],
+                 delimiter: str = ",",
+                 ):
+        row_source = CsvRowSource(file_path=file_path, delimiter=delimiter)
+        super().__init__(name=name, row_source=row_source, keys=keys)

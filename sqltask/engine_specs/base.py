@@ -6,8 +6,8 @@ from sqlalchemy.engine.url import URL
 from sqlalchemy.schema import Column
 from sqlalchemy.sql import text
 
-from sqltask.classes.common import UrlParams
-from sqltask.classes.table import TableContext
+from sqltask.base.common import UrlParams
+from sqltask.base.table import TableContext
 
 log = logging
 
