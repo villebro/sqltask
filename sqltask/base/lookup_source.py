@@ -50,7 +50,7 @@ class BaseLookupSource:
         :param unnamed_keys: unnamed key values to be used as keys
         :param named_keys: named key values to be used as keys
         :return: A dict with keys as the column name and values as the cell values.
-        if key undefined in internal dict return an empty dict.
+                 If key undefined in internal dict return an empty dict.
         """
         if len(unnamed_keys) + len(named_keys) != len(self.keys):
             raise Exception(f"Incorrect key count: expected {len(self.keys)} keys, "

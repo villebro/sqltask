@@ -69,7 +69,7 @@ class SqlTask:
         table_context = self._tables.get(name)
         if table_context is None:
             raise Exception(f"Undefined table context: `{name}`")
-        return OutputRow(table_context)
+        return table_context.get_new_row()
 
     def add_row_source(self, row_source: BaseRowSource) -> None:
         """
