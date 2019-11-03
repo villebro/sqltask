@@ -6,8 +6,6 @@
 [![Documentation](https://readthedocs.org/projects/sqltask/badge/?version=latest)](https://sqltask.readthedocs.io/en/latest/)
 [![Get on Slack](https://img.shields.io/badge/slack-join-orange.svg)](https://join.slack.com/t/sqltask/shared_invite/enQtODA2OTE2Nzg0OTc4LWM3NWViMzU0ODc3MjJiNmEzMDdmYzFmMzBiZjRkODExZGY0NDg0NmI5ZjE5NGFiMmM3Yzk5MGEzMDM5ZjM5OTU)
 
-https://join.slack.com/t/sqltask/shared_invite/enQtODA2OTE2Nzg0OTc4LWM3NWViMzU0ODc3MjJiNmEzMDdmYzFmMzBiZjRkODExZGY0NDg0NmI5ZjE5NGFiMmM3Yzk5MGEzMDM5ZjM5OTU
-
 # SqlTask
 SqlTask is an extensible ETL library based on [SqlAlchemy](https://www.sqlalchemy.org/)
 to help build robust ETL pipelines with high emphasis on data quality.
@@ -56,4 +54,4 @@ pip install sqltask[snowflake]
 ```
 
 Please refer to the [documentation](https://sqltask.readthedocs.io/en/latest/)
-on Read The Docs.
+on Read The Docs for further information.
