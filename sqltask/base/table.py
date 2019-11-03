@@ -14,6 +14,10 @@ if TYPE_CHECKING:
 
 
 class TableContext:
+    """
+    The TableContext class contains everything necessary for creating/modifying a
+    target table/schema and inserting/removing rows.
+    """
     def __init__(
             self,
             name: str,
@@ -27,8 +31,6 @@ class TableContext:
             table_params: Dict[str, Any] = None,
     ):
         """
-        Create a new table context.
-
         :param name: Name of target table in database.
         :param engine_context: engine to bind table to.
         :param columns: All columns in table.
@@ -110,7 +112,9 @@ class TableContext:
 
 class DqTableContext(TableContext):
     """
-    A table context with the ability to log data quality issues
+    A :class:`~sqltask.base.table.TableContext` child class with support for logging
+    data quality issues to a separate data quality table.
+    A  with the ability to log data quality issues
     """
     def __init__(
             self,
@@ -235,12 +239,34 @@ class DqTableContext(TableContext):
 
 
 class OutputRow(UserDict):
+    """
+    A class for storing cell values for a single row in a
+    :class:`~sqltask.base.table.TableContext` table. When the object is created,
+    all batch parameters are prepopulated.
+    """
     def __init__(self, table_context: TableContext):
         super().__init__(table_context.batch_params)
         self.table_context = table_context
         if table_context.timestamp_column_name:
             self[table_context.timestamp_column_name] = datetime.utcnow()
 
+    def append(self) -> None:
+        """
+        Append the row to the target table.  :func:`~sqltask.base.table.OutputRow.append`
+        should only be called once all cell values for the row have been fully populated,
+        as any changes.
+        """
+
+        output_row = {}
+        for column in self.table_context.table.columns:
+            if column.name not in self:
+                raise Exception(f"No column `{column.name}` in output row for table "
+                                f"`{self.table_context.name}`")
+            output_row[column.name] = self[column.name]
+        self.table_context.output_rows.append(output_row)
+
+
+class DqOutputRow(OutputRow):
     def log_dq(self, column_name: Optional[str], category: dq.Category,
                priority: dq.Priority, source: dq.Source,
                message: Optional[str] = None):
@@ -251,7 +277,7 @@ class OutputRow(UserDict):
         :param category: The type of data quality issue.
         :param source: To what phase the data quality issue relates.
         :param priority: What the priority of the data quality issue is.
-        Should be None for aggregate data quality issues.
+               Should be None for aggregate data quality issues.
         :param message: Verbose description of observed issue.
         """
         if column_name not in self.table_context.table.columns:
@@ -286,15 +312,3 @@ class OutputRow(UserDict):
             dq_row[column.name] = dq_output_row[column.name]
         dq_table_context.output_rows.append(dq_row)
 
-    def append(self) -> None:
-        """
-        Append the row to the table.
-        """
-
-        output_row = {}
-        for column in self.table_context.table.columns:
-            if column.name not in self:
-                raise Exception(f"No column `{column.name}` in output row for table "
-                                f"`{self.table_context.name}`")
-            output_row[column.name] = self[column.name]
-        self.table_context.output_rows.append(output_row)

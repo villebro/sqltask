@@ -40,9 +40,9 @@ class EngineContext:
         different schema.
 
         :param database: Database to use. If left unspecified, falls back to the database
-        provided by the original engine context
+               provided by the original engine context
         :param schema: Schema to use. If left unspecified, falls back to the schema
-        provided by the original engine context
+               provided by the original engine context
         :return: a new instance of EngineContext with different url
         """
         engine = create_engine(str(self.engine.url))
