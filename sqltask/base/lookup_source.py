@@ -1,7 +1,7 @@
 import logging
 from typing import Any, Dict, Sequence, Tuple
 
-from sqltask import BaseRowSource
+from sqltask.base.row_source import BaseRowSource
 
 
 class BaseLookupSource:
