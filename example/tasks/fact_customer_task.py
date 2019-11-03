@@ -6,8 +6,8 @@ from sqlalchemy.types import Date, DateTime, Integer, String
 
 from sqltask.base import dq
 from sqltask.base.exceptions import TooFewRowsException
-from sqltask.sources.sql import SqlRowSource, SqlLookupSource
 from sqltask.base.table import DqTableContext
+from sqltask.sources.sql import SqlLookupSource, SqlRowSource
 
 from .base_task import BaseExampleTask
 

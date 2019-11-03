@@ -1,4 +1,4 @@
-from typing import Optional, Iterator, Mapping, Any
+from typing import Any, Iterator, Mapping, Optional
 
 
 class BaseRowSource:

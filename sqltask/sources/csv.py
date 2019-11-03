@@ -1,8 +1,8 @@
 import csv
 from typing import List, Optional, Sequence
 
-from sqltask.base.row_source import BaseRowSource
 from sqltask.base.lookup_source import BaseLookupSource
+from sqltask.base.row_source import BaseRowSource
 
 
 class CsvRowSource(BaseRowSource):

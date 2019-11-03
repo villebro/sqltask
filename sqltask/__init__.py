@@ -1,8 +1,8 @@
 import logging
 from typing import Any, Dict
 
-from sqltask.base.row_source import BaseRowSource
 from sqltask.base.lookup_source import BaseLookupSource
+from sqltask.base.row_source import BaseRowSource
 from sqltask.base.table import OutputRow, TableContext
 
 __version__ = '0.4.0'

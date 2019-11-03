@@ -1,7 +1,7 @@
 from typing import Any, Dict, Iterator, Optional, Sequence
 
-from sqltask.base.row_source import BaseRowSource
 from sqltask.base.lookup_source import BaseLookupSource
+from sqltask.base.row_source import BaseRowSource
 
 
 class DictRowSource(BaseRowSource):

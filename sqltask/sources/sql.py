@@ -1,11 +1,11 @@
 import logging
-from typing import Any, Dict, Iterator, Optional, Sequence, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Dict, Iterator, Optional, Sequence
 
 from sqlalchemy.engine import RowProxy
 from sqlalchemy.sql import text
 
-from sqltask.base.row_source import BaseRowSource
 from sqltask.base.lookup_source import BaseLookupSource
+from sqltask.base.row_source import BaseRowSource
 
 if TYPE_CHECKING:
     from sqltask.base.engine import EngineContext

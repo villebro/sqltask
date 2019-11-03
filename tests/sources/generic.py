@@ -1,11 +1,7 @@
 from unittest import TestCase
 
-from sqltask.sources.generic import (
-    DictLookupSource,
-    DictRowSource,
-    ListRowSource,
-    ListLookupSource
-)
+from sqltask.sources.generic import (DictLookupSource, DictRowSource,
+                                     ListLookupSource, ListRowSource)
 
 
 class DictSourceTestCase(TestCase):

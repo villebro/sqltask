@@ -1,11 +1,5 @@
 import logging
-from typing import (
-    Any,
-    Dict,
-    Optional,
-    Sequence,
-    Tuple,
-)
+from typing import Any, Dict, Sequence, Tuple
 
 from sqltask import BaseRowSource
 
@@ -39,7 +33,7 @@ class BaseLookupSource:
                 f"duplicate keys, ignoring duplicate rows")
         logger.info(f"Created lookup {self.name} with {len(self.store)} rows")
 
-    def get(self, *unnamed_keys, **named_keys) -> Optional[Dict[str, Any]]:
+    def get(self, *unnamed_keys, **named_keys) -> Dict[str, Any]:
         """
         Get a value from the lookup. Assuming the key for a Lookup is
         key1, key2, key3, the following are valid calls:
