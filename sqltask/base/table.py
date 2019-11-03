@@ -216,6 +216,15 @@ class DqTableContext(TableContext):
             table_params=dq_table_params,
         )
 
+    def get_new_row(self) -> "DqOutputRow":
+        """
+        Get a new row intended to be added to the table.
+        """
+        output_row = DqOutputRow(self)
+        if self.timestamp_column_name:
+            output_row[self.timestamp_column_name] = datetime.utcnow()
+        return output_row
+
     def delete_rows(self) -> None:
         """
         Delete old rows from target table that match batch parameters.
@@ -269,7 +278,7 @@ class OutputRow(UserDict):
 class DqOutputRow(OutputRow):
     def log_dq(self, column_name: Optional[str], category: dq.Category,
                priority: dq.Priority, source: dq.Source,
-               message: Optional[str] = None):
+               message: Optional[str] = None) -> None:
         """
         Log data quality issue to be recorded in data quality table.
 
@@ -311,4 +320,3 @@ class DqOutputRow(OutputRow):
                                 f"`{dq_output_row.table_context.table.name}`")
             dq_row[column.name] = dq_output_row[column.name]
         dq_table_context.output_rows.append(dq_row)
-
