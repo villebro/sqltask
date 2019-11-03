@@ -5,8 +5,8 @@ from datetime import datetime
 from sqlalchemy.schema import Column
 from sqlalchemy.types import Date, String
 
-from sqltask.classes.file import CsvDataSource
-from sqltask.classes.table import TableContext
+from sqltask.base.table import TableContext
+from sqltask.sources.csv import CsvRowSource
 
 from .base_task import BaseExampleTask
 
@@ -28,10 +28,9 @@ class InitSourceTask(BaseExampleTask):
             comment="The original customer table",
         ))
         # csv file containing data
-        self.add_data_source(CsvDataSource(
+        self.add_row_source(CsvRowSource(
             name="customers.csv",
             file_path=os.path.join(current_dir, "..", "static_files", "customers.csv"),
-            delimiter=",",
         ))
 
         # additional table with sector codes per customer
@@ -47,23 +46,23 @@ class InitSourceTask(BaseExampleTask):
             comment="Sector codes for customers",
         ))
         # csv file containing data
-        self.add_data_source(CsvDataSource(
+        self.add_row_source(CsvRowSource(
             name="sector_codes.csv",
             file_path=os.path.join(current_dir, "..", "static_files", "sector_codes.csv"),
-            delimiter=",",
         ))
 
     def transform(self) -> None:
         # populate customers table
-        for in_row in self.get_data_source("customers.csv"):
+        for in_row in self.get_row_source("customers.csv"):
             row = self.get_new_row("customers")
-            row["report_date"] = datetime.strptime(in_row["report_date"], "%Y-%m-%d").date()
+            row["report_date"] = datetime.strptime(in_row["report_date"],
+                                                   "%Y-%m-%d").date()
             row["name"] = in_row["name"]
             row["birthday"] = in_row["birthday"]
             row.append()
 
         # populate sector_codes table
-        for in_row in self.get_data_source("sector_codes.csv"):
+        for in_row in self.get_row_source("sector_codes.csv"):
             row = self.get_new_row("sector_codes")
             row["start_date"] = datetime.strptime(in_row["start_date"], "%Y-%m-%d").date()
             row["end_date"] = datetime.strptime(in_row["end_date"], "%Y-%m-%d").date()

@@ -3,7 +3,7 @@ import logging
 import tempfile
 from datetime import datetime
 
-from sqltask.classes.table import TableContext
+from sqltask.base.table import TableContext
 
 
 def create_tmp_csv(table_context: TableContext, delimiter: str = "\t") -> str:

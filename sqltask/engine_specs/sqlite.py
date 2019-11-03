@@ -2,7 +2,7 @@ import logging
 
 from sqlalchemy.schema import Column
 
-from sqltask.classes.table import TableContext
+from sqltask.base.table import TableContext
 from sqltask.engine_specs.base import BaseEngineSpec, UploadType
 
 
