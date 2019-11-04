@@ -291,7 +291,7 @@ class BaseOutputRow(UserDict):
             for column in self.keys():
                 target_columns.remove(column)
         else:
-            target_columns = list(columns)
+            target_columns = set(columns)
         for column in target_columns:
             if column not in input_row:
                 raise Exception(f"Column not in input row: `{column}`")
