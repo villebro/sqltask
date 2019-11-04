@@ -7,7 +7,7 @@ from sqlalchemy.schema import Column
 from sqlalchemy.sql import text
 
 from sqltask.base.common import UrlParams
-from sqltask.base.table import TableContext
+from sqltask.base.table import BaseTableContext
 
 log = logging
 
@@ -35,7 +35,7 @@ class BaseEngineSpec:
 
     @classmethod
     def insert_rows(cls,
-                    table_context: "TableContext",
+                    table_context: "BaseTableContext",
                     upload_type: Optional[UploadType] = None) -> None:
         """
         Default method for inserting data into database. This
@@ -57,7 +57,7 @@ class BaseEngineSpec:
 
     @classmethod
     def _insert_rows_sql_insert(cls,
-                                table_context: "TableContext"
+                                table_context: "BaseTableContext"
                                 ) -> None:
         """
         Insert rows using standard insert statements. Not very performant, but mostly
@@ -70,7 +70,7 @@ class BaseEngineSpec:
 
     @classmethod
     def _insert_rows_sql_insert_multirow(cls,
-                                         table_context: "TableContext",
+                                         table_context: "BaseTableContext",
                                          chunksize: int = 5000
                                          ) -> None:
         """
@@ -85,11 +85,11 @@ class BaseEngineSpec:
             )
 
     @classmethod
-    def _insert_rows_csv(cls, table_context: "TableContext") -> None:
+    def _insert_rows_csv(cls, table_context: "BaseTableContext") -> None:
         raise NotImplementedError(f"`{cls.__name__}` does not support CSV upload")
 
     @classmethod
-    def truncate_rows(cls, table_context: "TableContext") -> None:
+    def truncate_rows(cls, table_context: "BaseTableContext") -> None:
         """
         Delete old rows from target table that match the execution parameters.
 
@@ -149,7 +149,7 @@ class BaseEngineSpec:
 
     @classmethod
     def add_column(cls,
-                   table_context: TableContext,
+                   table_context: BaseTableContext,
                    column: Column,
                    ) -> None:
         """
@@ -167,7 +167,7 @@ class BaseEngineSpec:
 
     @classmethod
     def drop_column(cls,
-                    table_context: TableContext,
+                    table_context: BaseTableContext,
                     column_name: Column,
                     ) -> None:
         """

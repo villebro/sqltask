@@ -5,7 +5,7 @@ from datetime import datetime
 from sqlalchemy.schema import Column
 from sqlalchemy.types import Date, String
 
-from sqltask.base.table import TableContext
+from sqltask.base.table import BaseTableContext
 from sqltask.sources.csv import CsvRowSource
 
 from .base_task import BaseExampleTask
@@ -17,7 +17,7 @@ class InitSourceTask(BaseExampleTask):
         current_dir = os.path.dirname(__file__)
 
         # main customer table
-        self.add_table(TableContext(
+        self.add_table(BaseTableContext(
             name="customers",
             engine_context=self.ENGINE_SOURCE,
             columns=[
@@ -34,7 +34,7 @@ class InitSourceTask(BaseExampleTask):
         ))
 
         # additional table with sector codes per customer
-        self.add_table(TableContext(
+        self.add_table(BaseTableContext(
             name="sector_codes",
             engine_context=self.ENGINE_SOURCE,
             columns=[
@@ -55,17 +55,15 @@ class InitSourceTask(BaseExampleTask):
         # populate customers table
         for in_row in self.get_row_source("customers.csv"):
             row = self.get_new_row("customers")
-            row["report_date"] = datetime.strptime(in_row["report_date"],
-                                                   "%Y-%m-%d").date()
-            row["name"] = in_row["name"]
-            row["birthday"] = in_row["birthday"]
-            row.append()
+            row["report_date"] = datetime.strptime(
+                in_row["report_date"], "%Y-%m-%d").date()
+            # map remaining columns one-to-one and auto append
+            row.map_all(in_row, auto_append=True)
 
         # populate sector_codes table
         for in_row in self.get_row_source("sector_codes.csv"):
             row = self.get_new_row("sector_codes")
             row["start_date"] = datetime.strptime(in_row["start_date"], "%Y-%m-%d").date()
             row["end_date"] = datetime.strptime(in_row["end_date"], "%Y-%m-%d").date()
-            row["name"] = in_row["name"]
-            row["sector_code"] = in_row["sector_code"]
-            row.append()
+            # map remaining columns one-to-one and auto append
+            row.map_all(in_row, auto_append=True)

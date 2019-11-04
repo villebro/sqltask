@@ -3,10 +3,10 @@ import logging
 import tempfile
 from datetime import datetime
 
-from sqltask.base.table import TableContext
+from sqltask.base.table import BaseTableContext
 
 
-def create_tmp_csv(table_context: TableContext, delimiter: str = "\t") -> str:
+def create_tmp_csv(table_context: BaseTableContext, delimiter: str = "\t") -> str:
     """
     Creates a temporary csv file based on `output_rows`.
 
