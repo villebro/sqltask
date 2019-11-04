@@ -33,22 +33,22 @@ class InitSourceTask(BaseExampleTask):
             file_path=os.path.join(current_dir, "..", "static_files", "customers.csv"),
         ))
 
-        # additional table with sector codes per customer
+        # table containing customer's blood groups
         self.add_table(BaseTableContext(
-            name="sector_codes",
+            name="customer_blood_groups",
             engine_context=self.ENGINE_SOURCE,
             columns=[
-                Column("start_date", Date, comment="date when row becomes active (inclusive)", nullable=False),
-                Column("end_date", Date, comment="date when row becomes inactive (non-inclusive)", nullable=False),
+                Column("start_date", Date, comment="Date when row becomes active (inclusive)", nullable=False),
+                Column("end_date", Date, comment="Date when row becomes inactive (non-inclusive)", nullable=False),
                 Column("name", String(128), comment="Customer name (non-unique)", nullable=False),
-                Column("sector_code", String(10), comment="Sector code of cutomer", nullable=True),
+                Column("blood_group", String(20), comment="Blood group of cutomer", nullable=True),
             ],
-            comment="Sector codes for customers",
+            comment="Unreliable blood group data for customers",
         ))
         # csv file containing data
         self.add_row_source(CsvRowSource(
-            name="sector_codes.csv",
-            file_path=os.path.join(current_dir, "..", "static_files", "sector_codes.csv"),
+            name="customer_blood_groups.csv",
+            file_path=os.path.join(current_dir, "..", "static_files", "customer_blood_groups.csv"),
         ))
 
     def transform(self) -> None:
@@ -60,9 +60,9 @@ class InitSourceTask(BaseExampleTask):
             # map remaining columns one-to-one and auto append
             row.map_all(in_row, auto_append=True)
 
-        # populate sector_codes table
-        for in_row in self.get_row_source("sector_codes.csv"):
-            row = self.get_new_row("sector_codes")
+        # populate customer blood group table
+        for in_row in self.get_row_source("customer_blood_groups.csv"):
+            row = self.get_new_row("customer_blood_groups")
             row["start_date"] = datetime.strptime(in_row["start_date"], "%Y-%m-%d").date()
             row["end_date"] = datetime.strptime(in_row["end_date"], "%Y-%m-%d").date()
             # map remaining columns one-to-one and auto append
