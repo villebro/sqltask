@@ -2,7 +2,7 @@ import logging
 
 from sqlalchemy.schema import Column
 
-from sqltask.base.table import TableContext
+from sqltask.base.table import BaseTableContext
 from sqltask.engine_specs.base import BaseEngineSpec, UploadType
 
 
@@ -15,7 +15,7 @@ class SqliteEngineSpec(BaseEngineSpec):
 
     @classmethod
     def drop_column(cls,
-                    table_context: TableContext,
+                    table_context: BaseTableContext,
                     column_name: Column,
                     ) -> None:
         """

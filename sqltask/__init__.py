@@ -3,9 +3,9 @@ from typing import Any, Dict
 
 from sqltask.base.lookup_source import BaseLookupSource
 from sqltask.base.row_source import BaseRowSource
-from sqltask.base.table import OutputRow, TableContext
+from sqltask.base.table import BaseOutputRow, BaseTableContext
 
-__version__ = '0.4.0'
+__version__ = '0.4.1'
 
 # initialize logging
 logger = logging.getLogger(__name__)
@@ -18,12 +18,12 @@ class SqlTask:
 
         :param batch_params: Mapping from batch column name to value
         """
-        self._tables: Dict[str, TableContext] = {}
+        self._tables: Dict[str, BaseTableContext] = {}
         self._row_sources: Dict[str, BaseRowSource] = {}
         self._lookups: Dict[str, BaseLookupSource] = {}
         self.batch_params: Dict[str, Any] = batch_params or {}
 
-    def add_table(self, table_context: TableContext) -> None:
+    def add_table(self, table_context: BaseTableContext) -> None:
         """
         Add a table schema.
 
@@ -33,7 +33,7 @@ class SqlTask:
             raise Exception("Cannot add table with undefined name.")
         self._tables[table_context.name] = table_context
 
-    def get_table_context(self, name: str) -> TableContext:
+    def get_table_context(self, name: str) -> BaseTableContext:
         """
         Retrieve table context
 
@@ -59,7 +59,7 @@ class SqlTask:
         """
         pass
 
-    def get_new_row(self, name: str) -> OutputRow:
+    def get_new_row(self, name: str) -> BaseOutputRow:
         """
         Returns an empty row based on the schema of the table.
 

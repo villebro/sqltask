@@ -2,7 +2,7 @@ import logging
 import os
 from typing import Optional, Sequence
 
-from sqltask.base.table import TableContext
+from sqltask.base.table import BaseTableContext
 from sqltask.engine_specs.base import BaseEngineSpec, UploadType
 from sqltask.utils.engine_specs import create_tmp_csv
 
@@ -21,11 +21,11 @@ class BigQueryEngineSpec(BaseEngineSpec):
     empty_where_clause = " WHERE 1 = 1"
 
     @classmethod
-    def _insert_rows_csv(cls, table_context: "TableContext") -> None:
+    def _insert_rows_csv(cls, table_context: "BaseTableContext") -> None:
         cls._insert_rows(table_context, UploadType.CSV)
 
     @classmethod
-    def _insert_rows(cls, table_context: TableContext,
+    def _insert_rows(cls, table_context: BaseTableContext,
                      upload_type: Optional[UploadType] = None) -> None:
         """
         BigQuery bulk loading is done by exporting the data to CSV and using the

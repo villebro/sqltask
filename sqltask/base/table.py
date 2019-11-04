@@ -1,21 +1,22 @@
 import logging
 from collections import UserDict
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Mapping, Optional, Sequence
 
 import sqlalchemy as sa
 from sqlalchemy.schema import Column, Table
 from sqlalchemy.types import String
 
 from sqltask.base import dq
+from sqltask.base.row_source import BaseRowSource
 
 if TYPE_CHECKING:
     from sqltask.base.engine import EngineContext
 
 
-class TableContext:
+class BaseTableContext:
     """
-    The TableContext class contains everything necessary for creating/modifying a
+    The BaseTableContext class contains everything necessary for creating/modifying a
     target table/schema and inserting/removing rows.
     """
     def __init__(
@@ -63,11 +64,11 @@ class TableContext:
         self.timestamp_column_name = timestamp_column_name
         self.output_rows: List[Dict[str, Any]] = []
 
-    def get_new_row(self) -> "OutputRow":
+    def get_new_row(self) -> "BaseOutputRow":
         """
         Get a new row intended to be added to the table.
         """
-        output_row = OutputRow(self)
+        output_row = BaseOutputRow(self)
         if self.timestamp_column_name:
             output_row[self.timestamp_column_name] = datetime.utcnow()
         return output_row
@@ -109,8 +110,20 @@ class TableContext:
             logging.debug(f"Create new table `{table.name}`")
             metadata.create_all(tables=[table])
 
+    def map_all(self, row_source: BaseRowSource) -> None:
+        """
+        Convenience method for mapping all rows and columns from the input row source
+        to the output table in a one-to-one fashion.
 
-class DqTableContext(TableContext):
+        :param row_source: Input row source to map to the outout table.
+        """
+        for row in row_source:
+            output_row = self.get_new_row()
+            output_row.map_all(row)
+            output_row.append()
+
+
+class DqTableContext(BaseTableContext):
     """
     A :class:`~sqltask.base.table.TableContext` child class with support for logging
     data quality issues to a separate data quality table.
@@ -205,7 +218,7 @@ class DqTableContext(TableContext):
             default_dq_columns
 
         dq_schema = dq_schema or self.schema
-        self.dq_table_context = TableContext(
+        self.dq_table_context = BaseTableContext(
             name=dq_table_name,
             engine_context=dq_engine_context,
             columns=dq_columns,
@@ -247,17 +260,44 @@ class DqTableContext(TableContext):
         self.dq_table_context.migrate_schema()
 
 
-class OutputRow(UserDict):
+class BaseOutputRow(UserDict):
     """
     A class for storing cell values for a single row in a
     :class:`~sqltask.base.table.TableContext` table. When the object is created,
     all batch parameters are prepopulated.
     """
-    def __init__(self, table_context: TableContext):
+    def __init__(self, table_context: BaseTableContext):
         super().__init__(table_context.batch_params)
         self.table_context = table_context
         if table_context.timestamp_column_name:
             self[table_context.timestamp_column_name] = datetime.utcnow()
+
+    def map_all(self,
+                input_row: Mapping[str, Any],
+                columns: Optional[Sequence[str]] = None,
+                auto_append: bool = False) -> None:
+        """
+        Convenience method for mapping column values one-to-one from an input row
+        to the output row.
+
+        :param input_row:
+        :param columns: A list of column names to map. If undefined, tries to map all
+               unmapped columns in target row.
+        :param auto_append: Call append if the mapping operation is successful.
+        """
+        if columns is None:
+            target_columns = set([column.name for column in
+                                  self.table_context.table.columns])
+            for column in self.keys():
+                target_columns.remove(column)
+        else:
+            target_columns = set(columns)
+        for column in target_columns:
+            if column not in input_row:
+                raise Exception(f"Column not in input row: `{column}`")
+            self[column] = input_row[column]
+        if auto_append:
+            self.append()
 
     def append(self) -> None:
         """
@@ -275,7 +315,7 @@ class OutputRow(UserDict):
         self.table_context.output_rows.append(output_row)
 
 
-class DqOutputRow(OutputRow):
+class DqOutputRow(BaseOutputRow):
     def log_dq(self, column_name: Optional[str], category: dq.Category,
                priority: dq.Priority, source: dq.Source,
                message: Optional[str] = None) -> None:

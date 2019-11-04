@@ -1,6 +1,6 @@
 import os
 
-from sqltask.base.table import TableContext
+from sqltask.base.table import BaseTableContext
 from sqltask.engine_specs.base import BaseEngineSpec, UploadType
 from sqltask.utils.engine_specs import create_tmp_csv
 
@@ -17,7 +17,7 @@ class PostgresEngineSpec(BaseEngineSpec):
     supports_schemas = True
 
     @classmethod
-    def _insert_rows_csv(cls, table_context: TableContext) -> None:
+    def _insert_rows_csv(cls, table_context: BaseTableContext) -> None:
         """
         Postgres bulk loading is done by exporting the data to CSV and using the
         cursor `copy_from` method.
