@@ -1,7 +1,9 @@
 import logging
-from typing import Any, Dict, Sequence, Tuple
+from typing import Any, Dict, Optional, Sequence, Tuple
 
 from sqltask.base.row_source import BaseRowSource
+
+logger = logging.getLogger(__name__)
 
 
 class BaseLookupSource:
@@ -9,12 +11,13 @@ class BaseLookupSource:
                  name: str,
                  row_source: BaseRowSource,
                  keys: Sequence[str]):
-        logger = logging.getLogger(__name__)
         self.name = name or row_source.name
         self.row_source = row_source
         self.keys = tuple(keys)
-        self.store: Dict[Tuple, Any] = {}
+        self._store: Optional[Dict[Tuple, Any]] = None
 
+    def _init_store(self):
+        self._store = {}
         duplicate_count = 0
         for row in self.row_source:
             if not all(key in row.keys() for key in self.keys):
@@ -22,16 +25,16 @@ class BaseLookupSource:
                                 f"input row keys ({', '.join(row.keys())})")
             key = tuple([row[key] for key in self.keys])
             value = {key: value for key, value in row.items()}
-            if key in self.store:
+            if key in self._store:
                 duplicate_count += 1
             else:
-                self.store[key] = value
+                self._store[key] = value
 
         if duplicate_count > 0:
             logger.warning(
                 f"Query result for lookup `{self.name}` has {duplicate_count} "
                 f"duplicate keys, ignoring duplicate rows")
-        logger.info(f"Created lookup {self.name} with {len(self.store)} rows")
+        logger.info(f"Created lookup {self.name} with {len(self._store)} rows")
 
     def get(self, *unnamed_keys, **named_keys) -> Dict[str, Any]:
         """
@@ -52,6 +55,9 @@ class BaseLookupSource:
         :return: A dict with keys as the column name and values as the cell values.
                  If key undefined in internal dict return an empty dict.
         """
+        if self._store is None:
+            self._init_store()
+
         if len(unnamed_keys) + len(named_keys) != len(self.keys):
             raise Exception(f"Incorrect key count: expected {len(self.keys)} keys, "
                             f"got {len(unnamed_keys) + len(named_keys)}")
@@ -60,4 +66,4 @@ class BaseLookupSource:
             if key not in named_keys:
                 raise Exception(f"Key not in lookup: {key}")
             keys.append(named_keys[key])
-        return self.store.get(tuple(keys), {})
+        return self._store.get(tuple(keys), {})
