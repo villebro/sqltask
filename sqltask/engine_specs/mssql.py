@@ -7,10 +7,8 @@ from sqltask.utils.engine_specs import create_tmp_csv
 
 class MssqlEngineSpec(BaseEngineSpec):
     engine = 'mssql'
-    supported_uploads = (UploadType.SQL_INSERT,
-                         UploadType.SQL_INSERT_MULTIROW,
-                         )
-    default_upload_type = UploadType.SQL_INSERT_MULTIROW
+    supported_uploads = {UploadType.SQL_INSERT}
+    default_upload_type = UploadType.SQL_INSERT
     supports_column_comments = True
     supports_table_comments = True
     supports_schemas = True
