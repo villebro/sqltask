@@ -1,5 +1,6 @@
 # flake8: noqa: E501
 from datetime import date, datetime
+import os
 from typing import cast
 
 from sqlalchemy.schema import Column
@@ -8,6 +9,7 @@ from sqlalchemy.types import Date, DateTime, Integer, String
 from sqltask.base import dq
 from sqltask.base.exceptions import TooFewRowsException
 from sqltask.base.table import DqTableContext, DqOutputRow
+from sqltask.sources.csv import CsvLookupSource
 from sqltask.sources.sql import SqlLookupSource, SqlRowSource
 
 from .base_task import BaseExampleTask
@@ -27,7 +29,7 @@ class FactCustomerTask(BaseExampleTask):
                 Column("customer_name", String(10), comment="Unique customer identifier (name)", primary_key=True),
                 Column("birthdate", Date, comment="Birthdate of customer if defined and in the past", nullable=True),
                 Column("age", Integer, comment="Age of customer in years if birthdate defined", nullable=True),
-                Column("sector_code", String(10), comment="Sector code of customer", nullable=True),
+                Column("blood_group", String(3), comment="Blood group of the customer", nullable=True),
             ],
             comment="The customer table",
             timestamp_column_name="etl_timestamp",
@@ -50,12 +52,12 @@ WHERE report_date = :report_date
 
         # Define a lookup source used for enriching the main source query
         self.add_lookup_source(SqlLookupSource(
-            name="sector_code",
+            name="customer_blood_groups",
             keys=["name"],
             sql="""
 SELECT name,
-       sector_code
-FROM sector_codes
+       blood_group
+FROM customer_blood_groups
 WHERE start_date <= :report_date
   AND end_date > :report_date
             """,
@@ -63,9 +65,20 @@ WHERE start_date <= :report_date
             engine_context=self.ENGINE_SOURCE,
         ))
 
+        # Define a lookup source with all valid blood groups (read directly from CSV)
+        current_dir = os.path.dirname(__file__)
+        self.add_lookup_source(CsvLookupSource(
+            name="valid_blood_groups",
+            keys=["blood_group"],
+            file_path=os.path.join(
+                current_dir, "..", "static_files", "valid_blood_groups.csv"
+            ),
+        ))
+
     def transform(self) -> None:
         report_date = self.batch_params["report_date"]
-        sector_code_lookup = self.get_lookup_source("sector_code")
+        customer_blood_group_lookup = self.get_lookup_source("customer_blood_groups")
+        valid_blood_group_lookup = self.get_lookup_source("valid_blood_groups")
         for in_row in self.get_row_source("main"):
             row = cast(DqOutputRow, self.get_new_row("fact_customer"))
 
@@ -121,18 +134,30 @@ WHERE start_date <= :report_date
                 )
             row["age"] = age
 
-            # sector_code
-            sector_code = sector_code_lookup.get(name=customer_name).get("sector_code")
+            # blood group
 
-            if sector_code is None:
+            # retrieve customer's blood group and make sure it's valid
+            customer_blood_group = customer_blood_group_lookup.get(name=customer_name).get("blood_group")
+            valid_blood_group = valid_blood_group_lookup.get(customer_blood_group).get("blood_group")
+
+            if not customer_blood_group:
                 row.log_dq(
-                    column_name="sector_code",
+                    column_name="blood_group",
                     source=dq.Source.SOURCE,
-                    priority=dq.Priority.LOW,
+                    priority=dq.Priority.MEDIUM,
                     category=dq.Category.MISSING,
-                    message="Sector code undefined in lookup table"
+                    message="Blood group undefined in customer's blood group table"
                 )
-            row["sector_code"] = sector_code
+            elif not valid_blood_group:
+                row.log_dq(
+                    column_name="blood_group",
+                    source=dq.Source.SOURCE,
+                    priority=dq.Priority.HIGH,
+                    category=dq.Category.INCORRECT,
+                    message=f"Invalid blood group: {customer_blood_group}"
+                )
+
+            row["blood_group"] = valid_blood_group
 
             # Finally add row to table output
             row.append()
