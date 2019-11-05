@@ -120,7 +120,7 @@ class BaseEngineSpec:
         if not cls.supports_schemas or database is None:
             return None
         if "/" in database_current:
-            database_current, schema_current = database.split("/")
+            database_current, schema_current = database_current.split("/")
 
         if database is None:
             database = database_current
