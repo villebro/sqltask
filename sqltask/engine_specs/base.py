@@ -1,6 +1,6 @@
 import logging
 from enum import Enum
-from typing import Optional, Sequence
+from typing import Optional, Set
 
 from sqlalchemy.engine.url import URL
 from sqlalchemy.schema import Column
@@ -14,8 +14,7 @@ log = logging
 
 class UploadType(Enum):
     SQL_INSERT = 1
-    SQL_INSERT_MULTIROW = 2
-    CSV = 3
+    CSV = 2
 
 
 class BaseEngineSpec:
@@ -24,13 +23,11 @@ class BaseEngineSpec:
     """
     engine: Optional[str] = None
     default_upload_type = UploadType.SQL_INSERT
-    supported_uploads: Sequence[UploadType] = (
-        UploadType.SQL_INSERT,
-        UploadType.SQL_INSERT_MULTIROW,
-    )
+    supported_uploads: Set[UploadType] = {UploadType.SQL_INSERT}
     supports_column_comments = True
     supports_table_comments = True
     supports_schemas = True
+    insert_chunksize = 10000
     empty_where_clause = ""
 
     @classmethod
@@ -48,17 +45,13 @@ class BaseEngineSpec:
         upload_type = upload_type or cls.default_upload_type
         if upload_type == UploadType.SQL_INSERT:
             cls._insert_rows_sql_insert(table_context)
-        elif upload_type == UploadType.SQL_INSERT_MULTIROW:
-            cls._insert_rows_sql_insert_multirow(table_context)
         elif upload_type == UploadType.CSV:
             cls._insert_rows_csv(table_context)
         else:
             raise NotImplementedError(f"Unsupported upload type: {upload_type}")
 
     @classmethod
-    def _insert_rows_sql_insert(cls,
-                                table_context: "BaseTableContext"
-                                ) -> None:
+    def _insert_rows_sql_insert(cls, table_context: "BaseTableContext") -> None:
         """
         Insert rows using standard insert statements. Not very performant, but mostly
         universally supported.
@@ -66,23 +59,12 @@ class BaseEngineSpec:
         if UploadType.SQL_INSERT not in cls.supported_uploads:
             raise Exception(f"SQL INSERT not supported by `{cls.__name__}`")
         with table_context.engine_context.engine.begin() as conn:
-            conn.execute(table_context.table.insert(), *table_context.output_rows)
-
-    @classmethod
-    def _insert_rows_sql_insert_multirow(cls,
-                                         table_context: "BaseTableContext",
-                                         chunksize: int = 5000
-                                         ) -> None:
-        """
-        Insert rows using standard insert statements. Not very performant, but mostly
-        universally supported.
-        """
-        if UploadType.SQL_INSERT not in cls.supported_uploads:
-            raise Exception(f"SQL INSERT not supported by `{cls.__name__}`")
-        with table_context.engine_context.engine.begin() as conn:
-            conn.execute(
-                table_context.table.insert().values(table_context.output_rows)
-            )
+            while table_context.output_rows:
+                insert_chunk = []
+                while table_context.output_rows and \
+                        len(insert_chunk) < cls.insert_chunksize:
+                    insert_chunk.append(table_context.output_rows.pop())
+                conn.execute(table_context.table.insert(), insert_chunk)
 
     @classmethod
     def _insert_rows_csv(cls, table_context: "BaseTableContext") -> None:
@@ -120,7 +102,7 @@ class BaseEngineSpec:
         if not cls.supports_schemas or database is None:
             return None
         if "/" in database_current:
-            database_current, schema_current = database.split("/")
+            database_current, schema_current = database_current.split("/")
 
         if database is None:
             database = database_current

@@ -7,10 +7,10 @@ from sqltask.utils.engine_specs import create_tmp_csv
 
 class SnowflakeEngineSpec(BaseEngineSpec):
     engine = "snowflake"
-    supported_uploads = (UploadType.SQL_INSERT,
-                         UploadType.SQL_INSERT_MULTIROW,
-                         UploadType.CSV,
-                         )
+    supported_uploads = {
+        UploadType.SQL_INSERT,
+        UploadType.CSV,
+    }
     default_upload_type = UploadType.CSV
 
     @classmethod

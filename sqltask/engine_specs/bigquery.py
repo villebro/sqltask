@@ -1,6 +1,6 @@
 import logging
 import os
-from typing import Optional, Sequence
+from typing import Optional, Set
 
 from sqltask.base.table import BaseTableContext
 from sqltask.engine_specs.base import BaseEngineSpec, UploadType
@@ -10,11 +10,10 @@ from sqltask.utils.engine_specs import create_tmp_csv
 class BigQueryEngineSpec(BaseEngineSpec):
     engine = 'bigquery'
     default_upload_type = UploadType.CSV
-    supported_uploads: Sequence[UploadType] = (
+    supported_uploads: Set[UploadType] = {
         UploadType.SQL_INSERT,
-        UploadType.SQL_INSERT_MULTIROW,
         UploadType.CSV,
-    )
+    }
     supports_column_comments = True
     supports_table_comments = True
     supports_schemas = False

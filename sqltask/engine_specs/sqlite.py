@@ -8,6 +8,7 @@ from sqltask.engine_specs.base import BaseEngineSpec, UploadType
 
 class SqliteEngineSpec(BaseEngineSpec):
     engine = 'sqlite'
+    supported_uploads = {UploadType.SQL_INSERT}
     default_upload_type = UploadType.SQL_INSERT
     supports_column_comments = False
     supports_table_comments = False
