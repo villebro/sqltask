@@ -4,10 +4,10 @@ Classes
 .. autoclass:: sqltask.base.engine.EngineContext
     :members:
 
-.. autoclass:: sqltask.base.table.TableContext
+.. autoclass:: sqltask.base.table.BaseTableContext
     :members:
 
-.. autoclass:: sqltask.base.table.OutputRow
+.. autoclass:: sqltask.base.table.BaseOutputRow
     :members:
 
 .. autoclass:: sqltask.base.table.DqTableContext
