@@ -59,9 +59,9 @@ It is also perfectly fine to have no parameters or multiple parameters. Typical
 scenarios:
 
 - No parameters: Initialization of static dimension tables
-- Single parameter: Calculation of a single snapshot, typically a snapshot date
+- Single parameter: Calculation of a single snapshot, typically the snapshot date
 - Multiple parameters: If data is further partitioned, it might be feasible to
-  split up the calculation into further batches, e.g. per region etc.
+  split up the calculation into further batches, e.g. per region, per hour.
 
 In this example, the the unit of work for the task constitutes creating a single
 snapshot for a certain `report_date`.
@@ -83,8 +83,6 @@ logging data quality issues. If we have our primary row data in CSV format, we
 could also have used a `CsvRowSource` instance as the primary data source. Similarly
 we could also use `SqlLookupSource` to construct our lookup table from a SQL query.
 
-:
-
 .. code-block:: python
 
     class MyTask(MyBaseTask):
@@ -101,10 +99,12 @@ we could also use `SqlLookupSource` to construct our lookup table from a SQL que
                     Column("customer_name", String(10), comment="Unique customer identifier (name)", primary_key=True),
                     Column("birthdate", Date, comment="Birthdate of customer if defined and in the past", nullable=True),
                     Column("age", Integer, comment="Age of customer in years if birthdate defined", nullable=True),
-                    Column("sector_code", String(10), comment="Sector code of customer", nullable=True),
+                    Column("blood_group", String(3), comment="Blood group of the customer", nullable=True),
                 ],
                 comment="The customer table",
                 timestamp_column_name="etl_timestamp",
                 batch_params={"report_date": report_date},
                 dq_info_column_names=["etl_timestamp"],
             ))
+
+TBC
