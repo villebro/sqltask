@@ -1,6 +1,6 @@
 # flake8: noqa: E501
-from datetime import date, datetime
 import os
+from datetime import date, datetime
 from typing import cast
 
 from sqlalchemy.schema import Column
@@ -8,7 +8,7 @@ from sqlalchemy.types import Date, DateTime, Integer, String
 
 from sqltask.base import dq
 from sqltask.base.exceptions import TooFewRowsException
-from sqltask.base.table import DqTableContext, DqOutputRow
+from sqltask.base.table import DqOutputRow, DqTableContext
 from sqltask.sources.csv import CsvLookupSource
 from sqltask.sources.sql import SqlLookupSource, SqlRowSource
 
