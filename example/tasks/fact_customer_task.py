@@ -34,7 +34,6 @@ class FactCustomerTask(BaseExampleTask):
             comment="The customer table",
             timestamp_column_name="etl_timestamp",
             batch_params={"report_date": report_date},
-            dq_info_column_names=["etl_timestamp"],
         ))
 
         # Define the main query used to populate the target table
