@@ -54,9 +54,12 @@ class SqlRowSource(BaseRowSource):
     def __iter__(self) -> Iterator[RowProxy]:
         logger.debug(f"Executing query for SQL row source: {self}")
         rows = self.engine_context.engine.execute(text(self.sql), self.params)
+        row_number = 0
         for row_number, row in enumerate(rows):
             yield row
-        logger.debug(f"Finished reading {row_number + 1} rows from SQL row source: {self}")
+        logger.debug(
+            f"Finished reading {row_number + 1} rows from SQL row source: {self}"
+        )
 
 
 class SqlLookupSource(BaseLookupSource):
