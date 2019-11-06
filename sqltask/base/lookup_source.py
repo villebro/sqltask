@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Dict, Optional, Sequence, Tuple
+from typing import Any, cast, Dict, Optional, Sequence, Tuple
 
 from sqltask.base.row_source import BaseRowSource
 
@@ -58,6 +58,7 @@ class BaseLookupSource:
         if self._store is None:
             self._init_store()
 
+        store = cast(Dict[Tuple, Any], self._store)
         if len(unnamed_keys) + len(named_keys) != len(self.keys):
             raise Exception(f"Incorrect key count: expected {len(self.keys)} keys, "
                             f"got {len(unnamed_keys) + len(named_keys)}")
@@ -66,4 +67,4 @@ class BaseLookupSource:
             if key not in named_keys:
                 raise Exception(f"Key not in lookup: {key}")
             keys.append(named_keys[key])
-        return self._store.get(tuple(keys), {})
+        return store.get(tuple(keys), {})
