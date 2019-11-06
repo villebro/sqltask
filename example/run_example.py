@@ -1,9 +1,13 @@
+import logging
 from datetime import date
 
 from tasks.fact_customer_task import FactCustomerTask
 from tasks.init_source_task import InitSourceTask
 
 if __name__ == "__main__":
+    logger = logging.getLogger("sqltask")
+    logger.setLevel(logging.DEBUG)
+
     # create initial data used by main task
     task = InitSourceTask()
     task.execute()

@@ -1,5 +1,5 @@
 import logging
-from typing import Any, cast, Dict, Optional, Sequence, Tuple
+from typing import Any, Dict, Optional, Sequence, Tuple, cast
 
 from sqltask.base.row_source import BaseRowSource
 
