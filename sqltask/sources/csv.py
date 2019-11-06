@@ -13,20 +13,23 @@ class CsvRowSource(BaseRowSource):
     def __init__(self,
                  file_path: str,
                  name: Optional[str] = None,
-                 delimiter: str = ","):
+                 delimiter: str = ",",
+                 encoding: Optional[str] = None):
         """
         :param name: name of data source.
         :param file_path: path to the csv file.
         :param delimiter: csv file delimiter.
+        :param encoding: Character encoding of csv file.
         """
 
         super().__init__(name)
         self.file_path = file_path
         self.delimiter = delimiter
+        self.encoding = encoding
 
         # populate column names
         self.columns: List[str] = []
-        with open(self.file_path, newline="") as csvfile:
+        with open(self.file_path, newline="", encoding=encoding) as csvfile:
             csvreader = csv.reader(csvfile, delimiter=self.delimiter)
             row = next(csvreader)
             for column in row:

@@ -79,12 +79,12 @@ echo "select * from fact_customer_dq;"  | sqlite3 --column --header target.db
 |report_date|customer_id|rowid|source|priority|category|column_name|message|
 | --- | --- | --- | --- | --- | --- | --- | --- |
 2019-06-30|Terminator|2019-11-06 05:59:52.380884|source|high|incorrect|blood_group|Invalid blood group: Liquid Metal
-2019-06-30|Terminator|2019-11-06 05:59:52.380825|transform|medium|missing|age|Age is undefined due to undefined
+2019-06-30|Terminator|2019-11-06 05:59:52.380825|transform|medium|missing|age|Age is undefined due to undefined birthdate
 2019-06-30|Terminator|2019-11-06 05:59:52.380767|source|high|incorrect|birthdate|Birthdate in future: 2095-01-01
 2019-06-30|Peter Impossible|2019-11-06 05:59:52.380575|source|high|incorrect|blood_group|Invalid blood group: X+
-2019-06-30|Peter Impossible|2019-11-06 05:59:52.380516|transform|medium|missing|age|Age is undefined due to undefined's blood group table
+2019-06-30|Peter Impossible|2019-11-06 05:59:52.380516|transform|medium|missing|age|Age is undefined due to undefined birthdate
 2019-06-30|Peter Impossible|2019-11-06 05:59:52.380459|source|high|incorrect|birthdate|Cannot parse birthdate: 1980-13-01
-2019-06-30|Mary Null|2019-11-06 05:59:52.380341|source|medium|missing|blood_group|Blood group undefined in customer's blood group table
+2019-06-30|Mary Null|2019-11-06 05:59:52.380341|source|medium|missing|blood_group|Blood group undefined in customer blood group table
 2019-06-30|Mary Null|2019-11-06 05:59:52.380280|transform|medium|missing|age|Age is undefined due to undefined birthdate
 2019-06-30|Mary Null|2019-11-06 05:59:52.380219|source|medium|missing|birthdate|Missing birthdate
 2019-06-30|John Connor|2019-11-06 05:59:52.378454|transform|medium|missing|age|Age is undefined due to undefined birthdate

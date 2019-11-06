@@ -146,7 +146,7 @@ WHERE start_date <= :report_date
                     source=dq.Source.SOURCE,
                     priority=dq.Priority.MEDIUM,
                     category=dq.Category.MISSING,
-                    message="Blood group undefined in customer's blood group table"
+                    message="Blood group undefined in customer blood group table"
                 )
             elif not valid_blood_group:
                 row.log_dq(
