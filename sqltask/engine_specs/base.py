@@ -1,6 +1,6 @@
 import logging
 from enum import Enum
-from typing import Optional, Set
+from typing import Any, Dict, List, Optional, Set
 
 from sqlalchemy.engine.url import URL
 from sqlalchemy.schema import Column
@@ -60,7 +60,7 @@ class BaseEngineSpec:
             raise Exception(f"SQL INSERT not supported by `{cls.__name__}`")
         with table_context.engine_context.engine.begin() as conn:
             while table_context.output_rows:
-                insert_chunk = []
+                insert_chunk: List[Dict[str, Any]] = []
                 while table_context.output_rows and \
                         len(insert_chunk) < cls.insert_chunksize:
                     insert_chunk.append(table_context.output_rows.pop())

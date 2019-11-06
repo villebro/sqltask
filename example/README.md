@@ -5,36 +5,37 @@
 A data analyst/engineer has the task of populating a customer table.
 The final customer table is expected to look like this:
 
-| report_date|etl_timestamp|customer_id|birthdate|age|sector_code |
+| report_date|etl_timestamp|customer_id|birthdate|age|blood_group |
 | ---- | ---| --- | --- | --- | --- |
 ||
 
-
 The task will consist of joining two source queries:
 * customers
-* sector_code
+* customer_blood_groups
 
-sink table is
+Blood groups are to be validated via a lookup table of valid blood groups:
+* valid_blood_groups.csv
+
+The sink table is
 * fact_customer 
 
 As part of the ETL process a data quality table is created:
 * customer_dq
 
-
 ## Setting up sqlalchemy engines
 
 In the example database urls are retrieved from environment variables,
-defaulting to `sqlite` (can be replaced by any SqlAlchemy connection 
-string):
+defaulting to `sqlite`. This can be replaced by any SqlAlchemy connection 
+that supports ANSI SQL syntax:
 
-### bash
+### bash (Mac, Linux)
 
 ```bash
 export SQLTASK_SOURCE="sqlite:///source.db" 
 export SQLTASK_TARGET="sqlite:///target.db"
 ```
 
-### powershell
+### powershell (Windows)
 
 ```powershell
 $env:SQLTASK_TARGET = "sqlite:///target.db"
@@ -58,12 +59,13 @@ echo "select * from fact_customer;"  | sqlite3 --column --header target.db
 ```
 
 
-|report_date|etl_timestamp|customer_id|birthdate|age|sector_code|
+|report_date|etl_timestamp|customer_id|birthdate|age|blood_group|
 | --- | --- | --- | --- | --- | --- |
-|2019-06-30|2019-10-09 13:28:06.081927|1234567|1980-01-01|39|111211|
-|2019-06-30|2019-10-09 13:28:06.090929|2345678|||143|
-|2019-06-30|2019-10-09 13:28:06.090929|2245678||||
-|2019-06-30|2019-10-09 13:28:06.090929|3456789||||
+2019-06-30|2019-11-06 05:59:52.380735|Terminator|||
+2019-06-30|2019-11-06 05:59:52.380654|Sarah Connor|1956-09-26|62|A+
+2019-06-30|2019-11-06 05:59:52.380425|Peter Impossible|||
+2019-06-30|2019-11-06 05:59:52.380202|Mary Null|||
+2019-06-30|2019-11-06 05:59:52.378324|John Connor|||A-
 
 ### Table fact_customer_dq
 
@@ -76,10 +78,14 @@ echo "select * from fact_customer_dq;"  | sqlite3 --column --header target.db
 
 |report_date|customer_id|rowid|source|priority|category|column_name|message|
 | --- | --- | --- | --- | --- | --- | --- | --- |
-2019-06-30|2245678|4a167eb2-34d5-4473-af18-e4238dedf2e3|source|high|incorrect|birthdate|Cannot parse birthdate: 1980-13-01
-2019-06-30|2245678|654326b4-3442-431e-85c7-525d1ffea97a|transform|medium|missing|age|Age is undefined due to undefined birthdate
-2019-06-30|2245678|6ed6d51c-2d70-4f12-91d8-6d86fd6d14b3|source|low|missing|sector_code|Sector code undefined in lookup table
-2019-06-30|2345678|e307dfd0-7b01-4fcc-b09e-7f52aaf4820a|source|high|incorrect|birthdate|Birthdate in future: 2080-01-01
-2019-06-30|2345678|b16c9337-abdd-4dce-b03b-bbddc6dca875|transform|medium|missing|age|Age is undefined due to undefined birthdate
-2019-06-30|3456789|ff04ebef-76f1-48e9-a314-2eb05e9f9c41|source|medium|missing|birthdate|Missing birthdate
-2019-06-30|3456789|ab197fa2-9c69-4bca-acd4-ebafc5eacbda|transform|medium|missing|age|Age is undefined due to undefined birthdate
+2019-06-30|Terminator|2019-11-06 05:59:52.380884|source|high|incorrect|blood_group|Invalid blood group: Liquid Metal
+2019-06-30|Terminator|2019-11-06 05:59:52.380825|transform|medium|missing|age|Age is undefined due to undefined
+2019-06-30|Terminator|2019-11-06 05:59:52.380767|source|high|incorrect|birthdate|Birthdate in future: 2095-01-01
+2019-06-30|Peter Impossible|2019-11-06 05:59:52.380575|source|high|incorrect|blood_group|Invalid blood group: X+
+2019-06-30|Peter Impossible|2019-11-06 05:59:52.380516|transform|medium|missing|age|Age is undefined due to undefined's blood group table
+2019-06-30|Peter Impossible|2019-11-06 05:59:52.380459|source|high|incorrect|birthdate|Cannot parse birthdate: 1980-13-01
+2019-06-30|Mary Null|2019-11-06 05:59:52.380341|source|medium|missing|blood_group|Blood group undefined in customer's blood group table
+2019-06-30|Mary Null|2019-11-06 05:59:52.380280|transform|medium|missing|age|Age is undefined due to undefined birthdate
+2019-06-30|Mary Null|2019-11-06 05:59:52.380219|source|medium|missing|birthdate|Missing birthdate
+2019-06-30|John Connor|2019-11-06 05:59:52.378454|transform|medium|missing|age|Age is undefined due to undefined birthdate
+2019-06-30|John Connor|2019-11-06 05:59:52.378385|source|high|incorrect|birthdate|Birthdate in future: 2080-01-01
