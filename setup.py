@@ -20,6 +20,7 @@ setup(
     packages=find_packages(),
     install_requires=[
         'sqlalchemy',
+        'chardet',
     ],
     license='MIT',
     classifiers=[

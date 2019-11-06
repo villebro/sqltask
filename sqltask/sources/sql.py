@@ -48,12 +48,15 @@ class SqlRowSource(BaseRowSource):
             database=self.database, schema=self.schema
         )
 
+    def __repr__(self):
+        return self.name or "<undefined>"
+
     def __iter__(self) -> Iterator[RowProxy]:
-        logger.info(f"Executing SQL query for sql row source "
-                    f"{self.name or '<undefined>'}")
+        logger.debug(f"Executing query for SQL row source: {self}")
         rows = self.engine_context.engine.execute(text(self.sql), self.params)
-        for row in rows:
+        for row_number, row in enumerate(rows):
             yield row
+        logger.debug(f"Finished reading {row_number + 1} rows from SQL row source: {self}")
 
 
 class SqlLookupSource(BaseLookupSource):
@@ -71,6 +74,7 @@ class SqlLookupSource(BaseLookupSource):
                  schema: Optional[str] = None,
                  ):
         row_source = SqlRowSource(
+            name=name,
             sql=sql,
             params=params,
             engine_context=engine_context,
