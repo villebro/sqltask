@@ -160,6 +160,40 @@ class BaseEngineSpec:
         :return:
         """
         table_name = table_context.table.name
-        logging.debug(f"Drop column `{column_name}` from table `{table_name}`")
+        logging.info(f"Drop column `{column_name}` from table `{table_name}`")
         stmt = f'ALTER TABLE {table_name} DROP COLUMN {column_name}'
+        table_context.engine_context.engine.execute(stmt)
+
+    @classmethod
+    def update_table_comment(cls,
+                             table_context: BaseTableContext,
+                             comment: str):
+        """
+        Update the comment of a table.
+
+        :param table_context: table which to alter
+        :param comment: new coment
+        :return:
+        """
+        table_name = table_context.table.name
+        logging.info(f"Change comment on table `{table_name}`")
+        stmt = f"COMMENT ON TABLE {table_name} IS '{comment}'"
+        table_context.engine_context.engine.execute(stmt)
+
+    @classmethod
+    def update_column_comment(cls,
+                              table_context: BaseTableContext,
+                              column_name: str,
+                              comment: str):
+        """
+        Update the comment of a column.
+
+        :param table_context: table which to alter
+        :param column_name: column whose comment is to be updated
+        :param comment: new coment
+        :return:
+        """
+        table_name = table_context.table.name
+        logging.info(f"Change comment on table `{table_name}`")
+        stmt = f"COMMENT ON COLUMN {table_name}.{column_name} IS '{comment}'"
         table_context.engine_context.engine.execute(stmt)

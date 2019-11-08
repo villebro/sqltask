@@ -91,14 +91,33 @@ class BaseTableContext:
         """
         table = self.table
         engine = self.engine_context.engine
+        engine_spec = self.engine_context.engine_spec
         metadata = self.engine_context.metadata
         if engine.has_table(table.name, schema=self.schema):
-            # table exists, add column
             inspector = sa.inspect(engine)
-            cols_existing = [col['name'] for col in inspector.get_columns(table.name)]
+
+            # update table comment if different from current comment
+            if engine_spec.supports_table_comments:
+                table_comment = inspector.get_table_comment(table.name)
+                if table.comment != table_comment:
+                    engine_spec.update_table_comment(self, table.comment)
+
+            # check if existing columns are up to date
+            cols_existing = {col['name']: col
+                             for col in inspector.get_columns(table.name)}
             for column in table.columns:
+                col_existing = cols_existing[column.name]
+
+                # add columns if not in table
                 if column.name not in cols_existing:
                     self.engine_context.engine_spec.add_column(self, column)
+                else:
+                    if engine_spec.supports_column_comments and \
+                            column.comment is not None and \
+                            col_existing["comment"] != column.comment:
+                        # update column comment if different from current comment
+                        engine_spec.update_column_comment(
+                            self, column.name, column.comment)
 
             # remove redundant columns
             cols_new = {col.name: col for col in table.columns}

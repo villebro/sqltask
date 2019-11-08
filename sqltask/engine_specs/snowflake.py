@@ -12,6 +12,7 @@ class SnowflakeEngineSpec(BaseEngineSpec):
         UploadType.CSV,
     }
     default_upload_type = UploadType.CSV
+    supports_table_comments = False
 
     @classmethod
     def _insert_rows_csv(cls, table_context: BaseTableContext) -> None:
