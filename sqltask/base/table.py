@@ -91,14 +91,33 @@ class BaseTableContext:
         """
         table = self.table
         engine = self.engine_context.engine
+        engine_spec = self.engine_context.engine_spec
         metadata = self.engine_context.metadata
         if engine.has_table(table.name, schema=self.schema):
-            # table exists, add column
             inspector = sa.inspect(engine)
-            cols_existing = [col['name'] for col in inspector.get_columns(table.name)]
+
+            # update table comment if different from current comment
+            if engine_spec.supports_table_comments:
+                table_comment = inspector.get_table_comment(table.name)
+                if table.comment != table_comment:
+                    engine_spec.update_table_comment(self, table.comment)
+
+            # check if existing columns are up to date
+            cols_existing = {col['name']: col
+                             for col in inspector.get_columns(table.name)}
             for column in table.columns:
-                if column.name not in cols_existing:
+                col_existing = cols_existing.get(column.name)
+
+                # add columns if not in table
+                if not col_existing:
                     self.engine_context.engine_spec.add_column(self, column)
+                else:
+                    if engine_spec.supports_column_comments and \
+                            column.comment is not None and \
+                            col_existing["comment"] != column.comment:
+                        # update column comment if different from current comment
+                        engine_spec.update_column_comment(
+                            self, column.name, column.comment)
 
             # remove redundant columns
             cols_new = {col.name: col for col in table.columns}
@@ -316,11 +335,27 @@ class BaseOutputRow(UserDict):
 
 
 class DqOutputRow(BaseOutputRow):
+    def __init__(self, table_context: DqTableContext):
+        super().__init__(table_context)
+        self.logging_enabled = True
+
+    def set_logging_enabled(self, enabled: bool) -> None:
+        """
+        If logging is set to false, data quality issues will not be passed to the
+        log table. This is useful for rows with lower priority data, e.g. inactive
+        users, whose data quality may be of poorer quality due to being stale.
+
+        :param enabled: set to True to log issues; False to ignore calls to `log_dq``
+        """
+        self.logging_enabled = enabled
+
     def log_dq(self, column_name: Optional[str], category: dq.Category,
                priority: dq.Priority, source: dq.Source,
                message: Optional[str] = None) -> None:
         """
-        Log data quality issue to be recorded in data quality table.
+        Log data quality issue to be recorded in data quality table. If logging
+        has been disabled by calling `set_logging_enabled(False)`, data quality
+        issues will be ignored.
 
         :param column_name: Name of affected column in target table.
         :param category: The type of data quality issue.
@@ -329,6 +364,9 @@ class DqOutputRow(BaseOutputRow):
                Should be None for aggregate data quality issues.
         :param message: Verbose description of observed issue.
         """
+        if self.logging_enabled is False:
+            return
+
         if column_name not in self.table_context.table.columns:
             raise Exception(f"Column `{column_name}` not in table "
                             f"`{self.table_context.table.name}`")
