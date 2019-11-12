@@ -54,7 +54,7 @@ class CsvRowSource(BaseRowSource):
         row_number = 0
         logger.debug(
             f"Start reading CSV row source: {self}")
-        with open(self.file_path, newline="") as csvfile:
+        with open(self.file_path, newline="", encoding=self.encoding) as csvfile:
             csvreader = csv.reader(csvfile, delimiter=self.delimiter)
             for in_row in csvreader:
                 row_number += 1
