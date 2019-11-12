@@ -177,6 +177,7 @@ class BaseEngineSpec:
         """
         table_name = table_context.table.name
         logging.info(f"Change comment on table `{table_name}`")
+        comment = comment.replace("'", "\'")
         stmt = f"COMMENT ON TABLE {table_name} IS '{comment}'"
         table_context.engine_context.engine.execute(stmt)
 
