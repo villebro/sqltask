@@ -48,6 +48,7 @@ class BaseTableContext:
         table_params = table_params or {}
         if comment:
             table_params["comment"] = comment
+
         table = Table(name,
                       engine_context.metadata,
                       *columns,

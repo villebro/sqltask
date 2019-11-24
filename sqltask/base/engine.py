@@ -2,6 +2,7 @@ import logging
 from typing import Any, Dict, Optional
 
 from sqlalchemy.engine import create_engine
+from sqlalchemy.engine.url import make_url
 from sqlalchemy.schema import MetaData
 
 from sqltask.engine_specs import get_engine_spec
@@ -45,6 +46,6 @@ class EngineContext:
                provided by the original engine context
         :return: a new instance of EngineContext with different url
         """
-        engine = create_engine(str(self.engine.url))
-        self.engine_spec.modify_url(engine.url, database=database, schema=schema)
-        return EngineContext(self.name, str(engine.url), **self.metadata_kwargs)
+        url = make_url(str(self.engine.url))
+        self.engine_spec.modify_url(url, database=database, schema=schema)
+        return EngineContext(self.name, str(url), **self.metadata_kwargs)
