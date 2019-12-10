@@ -2,6 +2,7 @@ import logging
 from enum import Enum
 from typing import Any, Dict, List, Optional, Set
 
+from sqlalchemy.engine import Dialect
 from sqlalchemy.engine.url import URL
 from sqlalchemy.schema import Column
 from sqlalchemy.sql import text
@@ -9,7 +10,7 @@ from sqlalchemy.sql import text
 from sqltask.base.common import UrlParams
 from sqltask.base.table import BaseTableContext
 
-log = logging
+logger = logging.getLogger(__name__)
 
 
 class UploadType(Enum):
@@ -131,20 +132,27 @@ class BaseEngineSpec:
 
     @classmethod
     def add_column(cls,
+                   dialect: Dialect,
                    table_context: BaseTableContext,
                    column: Column,
                    ) -> None:
         """
         Add a column to target table
 
+        :param dialect: SqlAlchemy dialect underlying the engine
         :param table_context: table which to alter
         :param column: column to be added
         :return:
         """
         table_name = table_context.table.name
         logging.debug(f"Add column `{column.name}` to table `{table_name}`")
+        nullable = column.nullable
+        primary_key = column.primary_key
+        comment = column.comment
+        autoincrement = column.autoincrement
+        default = column.default
         stmt = f'ALTER TABLE {table_name} ADD COLUMN ' \
-               f'{column.name} {str(column.type)}'
+               f'{column.name} {column.compile(dialect=dialect)}'
         table_context.engine_context.engine.execute(stmt)
 
     @classmethod
