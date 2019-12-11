@@ -149,7 +149,7 @@ class BaseEngineSpec:
                f"{column.name} {column.type.compile(dialect=dialect)}"
         if column.default is not None:
             if isinstance(column.default, str):
-                default_value = f"'{column.default}'"
+                default_value = f"'{get_escaped_string_value(column.default)}'"
             else:
                 default_value = column.default
             stmt += f" DEFAULT {default_value}"
