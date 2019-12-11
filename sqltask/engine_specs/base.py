@@ -2,13 +2,13 @@ import logging
 from enum import Enum
 from typing import Any, Dict, List, Optional, Set
 
-from sqlalchemy.engine import Dialect
 from sqlalchemy.engine.url import URL
 from sqlalchemy.schema import Column
 from sqlalchemy.sql import text
 
 from sqltask.base.common import UrlParams
 from sqltask.base.table import BaseTableContext
+from sqltask.utils.engine_specs import get_escaped_string_value
 
 logger = logging.getLogger(__name__)
 
@@ -132,27 +132,38 @@ class BaseEngineSpec:
 
     @classmethod
     def add_column(cls,
-                   dialect: Dialect,
                    table_context: BaseTableContext,
                    column: Column,
                    ) -> None:
         """
         Add a column to target table
 
-        :param dialect: SqlAlchemy dialect underlying the engine
         :param table_context: table which to alter
         :param column: column to be added
         :return:
         """
         table_name = table_context.table.name
+        dialect = table_context.engine_context.engine.dialect
         logging.debug(f"Add column `{column.name}` to table `{table_name}`")
-        nullable = column.nullable
-        primary_key = column.primary_key
-        comment = column.comment
-        autoincrement = column.autoincrement
-        default = column.default
-        stmt = f'ALTER TABLE {table_name} ADD COLUMN ' \
-               f'{column.name} {column.compile(dialect=dialect)}'
+        stmt = f"ALTER TABLE {table_name} ADD COLUMN " \
+               f"{column.name} {column.type.compile(dialect=dialect)}"
+        if column.default is not None:
+            if isinstance(column.default, str):
+                default_value = f"'{column.default}'"
+            else:
+                default_value = column.default
+            stmt += f" DEFAULT {default_value}"
+        if column.autoincrement is True:
+            stmt += " AUTOINCREMENT"
+        if column.nullable is True:
+            stmt += " NULL"
+        else:
+            stmt += " NOT NULL"
+        if column.primary_key is True:
+            stmt += " PRIMARY KEY"
+        if cls.supports_column_comments and column.comment:
+            comment = get_escaped_string_value(column.comment)
+            stmt += f" COMMENT '{comment}'"
         table_context.engine_context.engine.execute(stmt)
 
     @classmethod
@@ -185,7 +196,7 @@ class BaseEngineSpec:
         """
         table_name = table_context.table.name
         logging.info(f"Change comment on table `{table_name}`")
-        comment = comment.replace("'", "\\'")
+        comment = get_escaped_string_value(comment)
         stmt = f"COMMENT ON TABLE {table_name} IS '{comment}'"
         table_context.engine_context.engine.execute(stmt)
 
@@ -204,6 +215,6 @@ class BaseEngineSpec:
         """
         table_name = table_context.table.name
         logging.info(f"Change comment on table `{table_name}`")
-        comment = comment.replace("'", "\\'")
+        comment = get_escaped_string_value(comment)
         stmt = f"COMMENT ON COLUMN {table_name}.{column_name} IS '{comment}'"
         table_context.engine_context.engine.execute(stmt)
