@@ -1,27 +1,27 @@
-from datetime import date
 import os
+from datetime import date
 from unittest import TestCase
 
 from sqlalchemy.schema import Column
 from sqlalchemy.types import Date, String
 
-from sqltask.base.table import BaseTableContext
 from sqltask.base.engine import EngineContext
+from sqltask.base.table import BaseTableContext
 from sqltask.utils.engine_specs import create_tmp_csv
 
 
 def get_table_context() -> BaseTableContext:
     engine_context = EngineContext("source", "sqlite://")
     return BaseTableContext(
-            name="table",
-            engine_context=engine_context,
-            columns=[
-                Column("report_date", Date, primary_key=True),
-                Column("customer_name", String(10), comment="Name", primary_key=True),
-                Column("birthdate", Date, comment="Birthday", nullable=True),
-            ],
-            comment="The table",
-            batch_params={"report_date": date(2019, 12, 31)},
+        name="table",
+        engine_context=engine_context,
+        columns=[
+            Column("report_date", Date, primary_key=True),
+            Column("customer_name", String(10), comment="Name", primary_key=True),
+            Column("birthdate", Date, comment="Birthday", nullable=True),
+        ],
+        comment="The table",
+        batch_params={"report_date": date(2019, 12, 31)},
     )
 
 
