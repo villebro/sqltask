@@ -50,6 +50,7 @@ class BaseEngineSpec:
     engine: Optional[str] = None
     default_upload_type = UploadType.SQL_INSERT
     supported_uploads: Set[UploadType] = {UploadType.SQL_INSERT}
+    supports_primary_keys = True
     supports_column_comments = True
     supports_table_comments = True
     supports_schemas = True
@@ -184,7 +185,7 @@ class BaseEngineSpec:
             stmt += " NULL"
         else:
             stmt += " NOT NULL"
-        if column.primary_key is True:
+        if cls.supports_primary_keys and column.primary_key is True:
             stmt += " PRIMARY KEY"
         if cls.supports_column_comments and column.comment:
             comment = get_escaped_string_value(column.comment)
@@ -267,7 +268,7 @@ class BaseEngineSpec:
         else:
             if type(value) not in valid_types:
                 raise ValueError(f"Column {name} type {column.type} is not compatible "
-                                 f"with value: {value}")
+                                 f"with type {type(value).__name__}: {value}")
             if isinstance(value, str) and hasattr(column.type, "length") and \
                     column.type.length is not None \
                     and len(value) > column.type.length:  # type: ignore

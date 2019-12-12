@@ -11,6 +11,7 @@ class SqliteEngineSpec(BaseEngineSpec):
     supported_uploads = {UploadType.SQL_INSERT}
     default_upload_type = UploadType.SQL_INSERT
     supports_column_comments = False
+    supports_primary_keys = False
     supports_table_comments = False
     supports_schemas = False
 
