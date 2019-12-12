@@ -1,41 +1,13 @@
+from datetime import date, datetime
 import os
-from datetime import date
 from unittest import TestCase
 
 from sqlalchemy.schema import Column
-from sqlalchemy.types import Date, String
+from sqlalchemy.types import Date, DateTime, Float, Integer, String
 
-from sqltask.base.engine import EngineContext
-from sqltask.base.table import BaseTableContext
 from sqltask.utils.engine_specs import create_tmp_csv
-
-
-def get_table_context() -> BaseTableContext:
-    engine_context = EngineContext("source", "sqlite://")
-    return BaseTableContext(
-        name="table",
-        engine_context=engine_context,
-        columns=[
-            Column("report_date", Date, primary_key=True),
-            Column("customer_name", String(10), comment="Name", primary_key=True),
-            Column("birthdate", Date, comment="Birthday", nullable=True),
-        ],
-        comment="The table",
-        batch_params={"report_date": date(2019, 12, 31)},
-    )
-
-
-def populate_dummy_rows(table_context: BaseTableContext) -> None:
-    rows = (
-        (date(2019, 12, 31), "Jill", date(2009, 3, 31)),
-        (date(2019, 12, 31), "Jack", date(1999, 2, 28))
-    )
-    for in_row in rows:
-        row = table_context.get_new_row()
-        row["report_date"] = in_row[0]
-        row["customer_name"] = in_row[1]
-        row["birthdate"] = in_row[2]
-        row.append()
+from sqltask.engine_specs.base import BaseEngineSpec
+from tests.fixtures import get_table_context, populate_dummy_rows
 
 
 class TestEngineSpecs(TestCase):
@@ -45,3 +17,24 @@ class TestEngineSpecs(TestCase):
         populate_dummy_rows(table_context)
         file_path = create_tmp_csv(table_context)
         os.remove(f"{file_path}")
+
+    def test_validate_column_types(self):
+        validate = BaseEngineSpec.validate_column_value
+        str_column = Column("str_col", String(10), nullable=False)
+        int_column = Column("int_col", Integer())
+        float_column = Column("float_col", Float(), nullable=False)
+        date_column = Column("float_col", Date(), nullable=False)
+        datetime_column = Column("float_col", DateTime(), nullable=False)
+        self.assertIsNone(validate(date(2019, 12, 31), date_column))
+        self.assertIsNone(validate(date(2019, 12, 31), datetime_column))
+        self.assertIsNone(validate("abc", str_column))
+        self.assertIsNone(validate("1234567890", str_column))
+        self.assertIsNone(validate(1.1, float_column))
+        self.assertIsNone(validate(1, float_column))
+        self.assertIsNone(validate(1, int_column))
+        self.assertIsNone(validate(None, int_column))
+        self.assertRaises(ValueError, validate, datetime.utcnow(), date_column)
+        self.assertRaises(ValueError, validate, None, str_column)
+        self.assertRaises(ValueError, validate, "12345678901", str_column)
+        self.assertRaises(ValueError, validate, 12345, str_column)
+        self.assertRaises(ValueError, validate, 12345.5, int_column)

@@ -1,10 +1,13 @@
 import logging
+from datetime import date, datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Dict, List, Optional, Set, Tuple, Type
 
+from sqlalchemy import types
 from sqlalchemy.engine.url import URL
 from sqlalchemy.schema import Column
 from sqlalchemy.sql import text
+from sqlalchemy.sql.type_api import TypeEngine
 
 from sqltask.base.common import UrlParams
 from sqltask.base.table import BaseTableContext
@@ -16,6 +19,27 @@ logger = logging.getLogger(__name__)
 class UploadType(Enum):
     SQL_INSERT = 1
     CSV = 2
+
+
+VALID_COLUMN_TYPES: Dict[Type[TypeEngine], Tuple[Any, ...]] = {
+    types.Date: (date,),
+    types.DATE: (date,),
+    types.DateTime: (date, datetime),
+    types.DATETIME: (date, datetime),
+    types.INT: (int,),
+    types.INTEGER: (int,),
+    types.Integer: (int,),
+    types.Float: (int, float),
+    types.String: (str,),
+    types.NVARCHAR: (str,),
+    types.VARCHAR: (str,),
+    types.SmallInteger: (int,),
+    types.SMALLINT: (int,),
+    types.BIGINT: (int,),
+    types.BigInteger: (int,),
+    types.Numeric: (int, float),
+    types.NUMERIC: (int, float),
+}
 
 
 class BaseEngineSpec:
@@ -218,3 +242,35 @@ class BaseEngineSpec:
         comment = get_escaped_string_value(comment)
         stmt = f"COMMENT ON COLUMN {table_name}.{column_name} IS '{comment}'"
         table_context.engine_context.engine.execute(stmt)
+
+    @classmethod
+    def validate_column_value(cls, value: Any, column: Column) -> None:
+        """
+        Ensure that a value is compatible with the target column. The method doesn't
+        return a value, only raises an Exception if the value and target column type
+        are incompatible.
+
+        :param value: value to insert into a column of a database table
+        :param column: The target column
+        """
+        global VALID_COLUMN_TYPES
+        name = column.name
+        valid_types = VALID_COLUMN_TYPES.get(type(column.type))
+        if column.nullable and value is None:
+            pass
+        elif not column.nullable and value is None:
+            raise ValueError(f"Column {name} cannot be null")
+        elif valid_types is None:
+            # type checking not valid
+            pass
+        else:
+            if type(value) not in valid_types:
+                raise ValueError(f"Column {name} type {column.type} is not compatible "
+                                 f"with value: {value}")
+            if isinstance(value, str) and hasattr(column.type, "length") and \
+                    column.type.length is not None \
+                    and len(value) > column.type.length:  # type: ignore
+                raise ValueError(f"Column {name} only supports "
+                                 f"{column.type.length} "  # type: ignore
+                                 f"character strings, given value is {len(value)} "
+                                 f"characters.")

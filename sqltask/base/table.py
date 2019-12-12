@@ -1,11 +1,11 @@
 import logging
 from collections import UserDict
-from datetime import date, datetime
+from datetime import datetime
 from typing import TYPE_CHECKING, Any, Dict, List, Mapping, Optional, Sequence
 
 import sqlalchemy as sa
 from sqlalchemy.schema import Column, Table
-from sqlalchemy.types import Date, Float, Integer, String
+from sqlalchemy.types import String
 
 from sqltask.base import dq
 from sqltask.base.row_source import BaseRowSource
@@ -293,20 +293,13 @@ class BaseOutputRow(UserDict):
             self[table_context.timestamp_column_name] = datetime.utcnow()
 
     def __setitem__(self, key, value):
-        target_column = self.table_context.columns.get(key)
-        if target_column is None:
-            raise KeyError(f"Column not found in target schema: {key}")
-        elif target_column.nullable and value is None:
-            pass
-        elif not target_column.nullable and value is None:
-            raise ValueError(f"Column {key} cannot be null")
-        elif isinstance(target_column.type, Date) and not isinstance(value, date):
-            raise ValueError(f"Column {key} expects date, value type: {type(value)}")
-        elif isinstance(target_column.type, Integer) and not isinstance(value, int):
-            raise ValueError(f"Column {key} expects int, value type: {type(value)}")
-        elif isinstance(target_column.type, Float) and \
-                not (isinstance(value, int) or isinstance(value, float)):
-            raise ValueError(f"Column {key} expects float, value type: {type(value)}")
+        # validate column value if table schema defined
+        if self.table_context.columns is not None:
+            target_column = self.table_context.columns.get(key)
+            if target_column is None:
+                raise KeyError(f"Column not found in target schema: {key}")
+            engine_spec = self.table_context.engine_context.engine_spec
+            engine_spec.validate_column_value(value, target_column.type)
         super().__setitem__(key, value)
 
     def map_all(self,
