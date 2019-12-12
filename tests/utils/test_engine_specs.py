@@ -20,6 +20,7 @@ class TestEngineSpecs(TestCase):
 
     def test_validate_column_types(self):
         validate = BaseEngineSpec.validate_column_value
+        str10_column = Column("str10_col", String, nullable=False)
         str_column = Column("str_col", String(10), nullable=False)
         int_column = Column("int_col", Integer())
         float_column = Column("float_col", Float(), nullable=False)
@@ -27,14 +28,15 @@ class TestEngineSpecs(TestCase):
         datetime_column = Column("float_col", DateTime(), nullable=False)
         self.assertIsNone(validate(date(2019, 12, 31), date_column))
         self.assertIsNone(validate(date(2019, 12, 31), datetime_column))
-        self.assertIsNone(validate("abc", str_column))
-        self.assertIsNone(validate("1234567890", str_column))
+        self.assertIsNone(validate("abc", str10_column))
+        self.assertIsNone(validate("1234567890", str10_column))
+        self.assertIsNone(validate("123456789012345", str_column))
         self.assertIsNone(validate(1.1, float_column))
         self.assertIsNone(validate(1, float_column))
         self.assertIsNone(validate(1, int_column))
         self.assertIsNone(validate(None, int_column))
         self.assertRaises(ValueError, validate, datetime.utcnow(), date_column)
         self.assertRaises(ValueError, validate, None, str_column)
-        self.assertRaises(ValueError, validate, "12345678901", str_column)
+        self.assertRaises(ValueError, validate, "12345678901", str10_column)
         self.assertRaises(ValueError, validate, 12345, str_column)
         self.assertRaises(ValueError, validate, 12345.5, int_column)
