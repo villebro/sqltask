@@ -50,6 +50,7 @@ class BaseEngineSpec:
     engine: Optional[str] = None
     default_upload_type = UploadType.SQL_INSERT
     supported_uploads: Set[UploadType] = {UploadType.SQL_INSERT}
+    supports_primary_keys = True
     supports_column_comments = True
     supports_table_comments = True
     supports_schemas = True
@@ -184,7 +185,7 @@ class BaseEngineSpec:
             stmt += " NULL"
         else:
             stmt += " NOT NULL"
-        if column.primary_key is True:
+        if cls.supports_primary_keys and column.primary_key is True:
             stmt += " PRIMARY KEY"
         if cls.supports_column_comments and column.comment:
             comment = get_escaped_string_value(column.comment)
@@ -262,16 +263,17 @@ class BaseEngineSpec:
         elif not column.nullable and value is None:
             raise ValueError(f"Column {name} cannot be null")
         elif valid_types is None:
-            # type checking not valid
+            # type checking not defined for this type
             pass
         else:
+            type_ = column.type
+            length = type_.length if hasattr(type_, "length") else None  # type: ignore
             if type(value) not in valid_types:
                 raise ValueError(f"Column {name} type {column.type} is not compatible "
-                                 f"with value: {value}")
-            if isinstance(value, str) and hasattr(column.type, "length") and \
-                    column.type.length is not None \
-                    and len(value) > column.type.length:  # type: ignore
+                                 f"with type {type(value).__name__}: {value}")
+            if isinstance(value, str) and length is not None \
+                    and len(value) > length:
                 raise ValueError(f"Column {name} only supports "
-                                 f"{column.type.length} "  # type: ignore
+                                 f"{length} "
                                  f"character strings, given value is {len(value)} "
                                  f"characters.")

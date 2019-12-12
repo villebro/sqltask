@@ -1,4 +1,5 @@
 from datetime import date
+from typing import List, Optional
 
 from sqlalchemy.schema import Column
 from sqlalchemy.types import Date, String
@@ -7,12 +8,14 @@ from sqltask.base.engine import EngineContext
 from sqltask.base.table import BaseTableContext
 
 
-def get_table_context() -> BaseTableContext:
+def get_table_context(name: Optional[str] = None,
+                      columns: Optional[List[Column]] = None,
+                      ) -> BaseTableContext:
     engine_context = EngineContext("source", "sqlite://")
     return BaseTableContext(
-        name="table",
+        name=name or "tbl",
         engine_context=engine_context,
-        columns=[
+        columns=columns or [
             Column("report_date", Date, primary_key=True),
             Column("customer_name", String(10), comment="Name", primary_key=True),
             Column("birthdate", Date, comment="Birthday", nullable=True),
