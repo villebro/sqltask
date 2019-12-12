@@ -46,8 +46,10 @@ class BaseTableContext:
         """
         # comment is apparently not Optional, so needs to be passed via kwargs
         table_params = table_params or {}
+        self.columns = {column.name: column for column in columns}
         if comment:
             table_params["comment"] = comment
+
         table = Table(name,
                       engine_context.metadata,
                       *columns,
@@ -93,6 +95,7 @@ class BaseTableContext:
         engine = self.engine_context.engine
         engine_spec = self.engine_context.engine_spec
         metadata = self.engine_context.metadata
+
         if engine.has_table(table.name, schema=self.schema):
             inspector = sa.inspect(engine)
 
@@ -201,7 +204,6 @@ class DqTableContext(BaseTableContext):
 
         dq_table_name = dq_table_name or self.name + "_dq"
         dq_engine_context = dq_engine_context or self.engine_context
-        dq_timestamp_column_name = self.timestamp_column_name or "etl_timestamp"
         dq_schema = dq_schema or self.schema
         dq_info_column_names = dq_info_column_names or []
         dq_table_params = dq_table_params or {}
@@ -244,7 +246,6 @@ class DqTableContext(BaseTableContext):
             comment=comment,
             schema=dq_schema,
             batch_params=batch_params,
-            timestamp_column_name=dq_timestamp_column_name,
             table_params=dq_table_params,
         )
 
@@ -286,10 +287,20 @@ class BaseOutputRow(UserDict):
     all batch parameters are prepopulated.
     """
     def __init__(self, table_context: BaseTableContext):
-        super().__init__(table_context.batch_params)
         self.table_context = table_context
+        super().__init__(table_context.batch_params)
         if table_context.timestamp_column_name:
             self[table_context.timestamp_column_name] = datetime.utcnow()
+
+    def __setitem__(self, key, value):
+        # validate column value if table schema defined
+        if self.table_context.columns is not None:
+            target_column = self.table_context.columns.get(key)
+            if target_column is None:
+                raise KeyError(f"Column not found in target schema: {key}")
+            engine_spec = self.table_context.engine_context.engine_spec
+            engine_spec.validate_column_value(value, target_column)
+        super().__setitem__(key, value)
 
     def map_all(self,
                 input_row: Mapping[str, Any],
@@ -326,7 +337,7 @@ class BaseOutputRow(UserDict):
         """
 
         output_row = {}
-        for column in self.table_context.table.columns:
+        for column in self.table_context.columns.values():
             if column.name not in self:
                 raise Exception(f"No column `{column.name}` in output row for table "
                                 f"`{self.table_context.name}`")

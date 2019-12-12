@@ -65,6 +65,6 @@ class BaseLookupSource:
         keys = [key for key in unnamed_keys]
         for key in self.keys[len(unnamed_keys):]:
             if key not in named_keys:
-                raise Exception(f"Key not in lookup: {key}")
+                raise ValueError(f"Key not in lookup: {key}")
             keys.append(named_keys[key])
         return store.get(tuple(keys), {})

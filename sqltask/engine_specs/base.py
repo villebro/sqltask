@@ -1,20 +1,45 @@
 import logging
+from datetime import date, datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Dict, List, Optional, Set, Tuple, Type
 
+from sqlalchemy import types
 from sqlalchemy.engine.url import URL
 from sqlalchemy.schema import Column
 from sqlalchemy.sql import text
+from sqlalchemy.sql.type_api import TypeEngine
 
 from sqltask.base.common import UrlParams
 from sqltask.base.table import BaseTableContext
+from sqltask.utils.engine_specs import get_escaped_string_value
 
-log = logging
+logger = logging.getLogger(__name__)
 
 
 class UploadType(Enum):
     SQL_INSERT = 1
     CSV = 2
+
+
+VALID_COLUMN_TYPES: Dict[Type[TypeEngine], Tuple[Any, ...]] = {
+    types.Date: (date,),
+    types.DATE: (date,),
+    types.DateTime: (date, datetime),
+    types.DATETIME: (date, datetime),
+    types.INT: (int,),
+    types.INTEGER: (int,),
+    types.Integer: (int,),
+    types.Float: (int, float),
+    types.String: (str,),
+    types.NVARCHAR: (str,),
+    types.VARCHAR: (str,),
+    types.SmallInteger: (int,),
+    types.SMALLINT: (int,),
+    types.BIGINT: (int,),
+    types.BigInteger: (int,),
+    types.Numeric: (int, float),
+    types.NUMERIC: (int, float),
+}
 
 
 class BaseEngineSpec:
@@ -100,7 +125,7 @@ class BaseEngineSpec:
         database_current = url.database
         schema_current = None
         if not cls.supports_schemas or database is None:
-            return None
+            return
         if "/" in database_current:
             database_current, schema_current = database_current.split("/")
 
@@ -142,9 +167,27 @@ class BaseEngineSpec:
         :return:
         """
         table_name = table_context.table.name
+        dialect = table_context.engine_context.engine.dialect
         logging.debug(f"Add column `{column.name}` to table `{table_name}`")
-        stmt = f'ALTER TABLE {table_name} ADD COLUMN ' \
-               f'{column.name} {str(column.type)}'
+        stmt = f"ALTER TABLE {table_name} ADD COLUMN " \
+               f"{column.name} {column.type.compile(dialect=dialect)}"
+        if column.default is not None:
+            if isinstance(column.default, str):
+                default_value = f"'{get_escaped_string_value(column.default)}'"
+            else:
+                default_value = column.default
+            stmt += f" DEFAULT {default_value}"
+        if column.autoincrement is True:
+            stmt += " AUTOINCREMENT"
+        if column.nullable is True:
+            stmt += " NULL"
+        else:
+            stmt += " NOT NULL"
+        if column.primary_key is True:
+            stmt += " PRIMARY KEY"
+        if cls.supports_column_comments and column.comment:
+            comment = get_escaped_string_value(column.comment)
+            stmt += f" COMMENT '{comment}'"
         table_context.engine_context.engine.execute(stmt)
 
     @classmethod
@@ -177,7 +220,7 @@ class BaseEngineSpec:
         """
         table_name = table_context.table.name
         logging.info(f"Change comment on table `{table_name}`")
-        comment = comment.replace("'", "\\'")
+        comment = get_escaped_string_value(comment)
         stmt = f"COMMENT ON TABLE {table_name} IS '{comment}'"
         table_context.engine_context.engine.execute(stmt)
 
@@ -196,6 +239,38 @@ class BaseEngineSpec:
         """
         table_name = table_context.table.name
         logging.info(f"Change comment on table `{table_name}`")
-        comment = comment.replace("'", "\\'")
+        comment = get_escaped_string_value(comment)
         stmt = f"COMMENT ON COLUMN {table_name}.{column_name} IS '{comment}'"
         table_context.engine_context.engine.execute(stmt)
+
+    @classmethod
+    def validate_column_value(cls, value: Any, column: Column) -> None:
+        """
+        Ensure that a value is compatible with the target column. The method doesn't
+        return a value, only raises an Exception if the value and target column type
+        are incompatible.
+
+        :param value: value to insert into a column of a database table
+        :param column: The target column
+        """
+        global VALID_COLUMN_TYPES
+        name = column.name
+        valid_types = VALID_COLUMN_TYPES.get(type(column.type))
+        if column.nullable and value is None:
+            pass
+        elif not column.nullable and value is None:
+            raise ValueError(f"Column {name} cannot be null")
+        elif valid_types is None:
+            # type checking not valid
+            pass
+        else:
+            if type(value) not in valid_types:
+                raise ValueError(f"Column {name} type {column.type} is not compatible "
+                                 f"with value: {value}")
+            if isinstance(value, str) and hasattr(column.type, "length") and \
+                    column.type.length is not None \
+                    and len(value) > column.type.length:  # type: ignore
+                raise ValueError(f"Column {name} only supports "
+                                 f"{column.type.length} "  # type: ignore
+                                 f"character strings, given value is {len(value)} "
+                                 f"characters.")
