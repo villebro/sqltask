@@ -20,8 +20,8 @@ class TestEngineSpecs(TestCase):
 
     def test_validate_column_types(self):
         validate = BaseEngineSpec.validate_column_value
-        str10_column = Column("str10_col", String, nullable=False)
-        str_column = Column("str_col", String(10), nullable=False)
+        str10_column = Column("str10_col", String(10), nullable=False)
+        str_column = Column("str_col", String, nullable=False)
         int_column = Column("int_col", Integer())
         float_column = Column("float_col", Float(), nullable=False)
         date_column = Column("float_col", Date(), nullable=False)

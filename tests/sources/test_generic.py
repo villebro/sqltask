@@ -71,4 +71,4 @@ class ListSourceTestCase(TestCase):
         self.assertDictEqual(expected_values[0], lookup_source.get(c=2, a=1))
         self.assertDictEqual(expected_values[1], lookup_source.get(2, 100))
         self.assertDictEqual(expected_values[1], lookup_source.get(c=100, a=2))
-        self.assertDictEqual({}, lookup_source.get(d=None, a=None))
+        self.assertRaises(ValueError, lookup_source.get, d=None, a=None)

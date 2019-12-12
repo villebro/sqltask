@@ -299,7 +299,7 @@ class BaseOutputRow(UserDict):
             if target_column is None:
                 raise KeyError(f"Column not found in target schema: {key}")
             engine_spec = self.table_context.engine_context.engine_spec
-            engine_spec.validate_column_value(value, target_column.type)
+            engine_spec.validate_column_value(value, target_column)
         super().__setitem__(key, value)
 
     def map_all(self,
