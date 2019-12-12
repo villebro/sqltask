@@ -1,12 +1,12 @@
-from datetime import date, datetime
 import os
+from datetime import date, datetime
 from unittest import TestCase
 
 from sqlalchemy.schema import Column
 from sqlalchemy.types import Date, DateTime, Float, Integer, String
 
-from sqltask.utils.engine_specs import create_tmp_csv
 from sqltask.engine_specs.base import BaseEngineSpec
+from sqltask.utils.engine_specs import create_tmp_csv
 from tests.fixtures import get_table_context, populate_dummy_rows
 
 
