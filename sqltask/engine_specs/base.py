@@ -1,5 +1,6 @@
 import logging
 from datetime import date, datetime
+from decimal import Decimal
 from enum import Enum
 from typing import Any, Dict, List, Optional, Set, Tuple, Type
 
@@ -29,7 +30,7 @@ VALID_COLUMN_TYPES: Dict[Type[TypeEngine], Tuple[Any, ...]] = {
     types.INT: (int,),
     types.INTEGER: (int,),
     types.Integer: (int,),
-    types.Float: (int, float),
+    types.Float: (int, float, Decimal),
     types.String: (str,),
     types.NVARCHAR: (str,),
     types.VARCHAR: (str,),
@@ -37,8 +38,8 @@ VALID_COLUMN_TYPES: Dict[Type[TypeEngine], Tuple[Any, ...]] = {
     types.SMALLINT: (int,),
     types.BIGINT: (int,),
     types.BigInteger: (int,),
-    types.Numeric: (int, float),
-    types.NUMERIC: (int, float),
+    types.Numeric: (int, float, Decimal),
+    types.NUMERIC: (int, float, Decimal),
 }
 
 

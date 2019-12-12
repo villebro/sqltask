@@ -1,5 +1,6 @@
 import os
 from datetime import date, datetime
+from decimal import Decimal
 from unittest import TestCase
 
 from sqlalchemy.schema import Column
@@ -31,6 +32,7 @@ class TestEngineSpecs(TestCase):
         self.assertIsNone(validate("abc", str10_column))
         self.assertIsNone(validate("1234567890", str10_column))
         self.assertIsNone(validate("123456789012345", str_column))
+        self.assertIsNone(validate(Decimal("1234.567"), float_column))
         self.assertIsNone(validate(1.1, float_column))
         self.assertIsNone(validate(1, float_column))
         self.assertIsNone(validate(1, int_column))
