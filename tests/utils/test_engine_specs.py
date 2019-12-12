@@ -19,13 +19,6 @@ class TestEngineSpecs(TestCase):
         file_path = create_tmp_csv(table_context)
         os.remove(f"{file_path}")
 
-    def test_csv_export(self):
-        table_context = get_table_context()
-        table_context.migrate_schema()
-        populate_dummy_rows(table_context)
-        file_path = create_tmp_csv(table_context)
-        os.remove(f"{file_path}")
-
     def test_validate_column_types(self):
         validate = BaseEngineSpec.validate_column_value
         str10_column = Column("str10_col", String(10), nullable=False)

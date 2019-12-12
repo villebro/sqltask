@@ -9,10 +9,10 @@ class TestBaseTableContext(TestCase):
         engine = table_context.engine_context.engine
         engine.execute("""
         CREATE TABLE tbl (
-	        customer_name VARCHAR(10) NOT NULL,
-	        report_date DATE NOT NULL,
-	        birthdate DATE NULL,
-	        redundant_field VARCHAR(128) NOT NULL
+            customer_name VARCHAR(10) NOT NULL,
+            report_date DATE NOT NULL,
+            birthdate DATE NULL,
+            redundant_field VARCHAR(128) NOT NULL
         )
         """)
         table_context.migrate_schema()

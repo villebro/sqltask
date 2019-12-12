@@ -1,5 +1,5 @@
 from datetime import date
-from typing import Optional, Sequence
+from typing import List, Optional
 
 from sqlalchemy.schema import Column
 from sqlalchemy.types import Date, String
@@ -9,7 +9,7 @@ from sqltask.base.table import BaseTableContext
 
 
 def get_table_context(name: Optional[str] = None,
-                      columns: Optional[Sequence[Column]] = None,
+                      columns: Optional[List[Column]] = None,
                       ) -> BaseTableContext:
     engine_context = EngineContext("source", "sqlite://")
     return BaseTableContext(
