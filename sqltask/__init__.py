@@ -128,6 +128,13 @@ class SqlTask:
         for table_context in self._tables.values():
             table_context.insert_rows()
 
+    def post_insert(self) -> None:
+        """
+        Optional step to execute after insertion is completed. Usually used to execute
+        sql statements that don't require row-by-row transformation
+        """
+        pass
+
     def delete_rows(self) -> None:
         """
         Delete rows in target tables.
@@ -156,6 +163,8 @@ class SqlTask:
         self.delete_rows()
         logger.debug(f"Start insert")
         self.insert_rows()
+        logger.debug(f"Start post insert")
+        self.post_insert()
         logger.debug(f"Finish etl")
 
     def execute(self):
