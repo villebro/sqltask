@@ -49,7 +49,7 @@ class SqlTask:
         """
         Main transformation method where target rows should be generated.
         """
-        raise NotImplementedError("`transform` method must be implemented")
+        pass
 
     def validate(self) -> None:
         """

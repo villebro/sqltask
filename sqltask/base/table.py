@@ -13,6 +13,8 @@ from sqltask.base.row_source import BaseRowSource
 if TYPE_CHECKING:
     from sqltask.base.engine import EngineContext
 
+logger = logging.getLogger(__name__)
+
 
 class BaseTableContext:
     """
@@ -113,12 +115,16 @@ class BaseTableContext:
 
                 # add columns if not in table
                 if not col_existing:
+                    logger.info(f"Add column `{column.name}` to table `{table.name}`")
                     self.engine_context.engine_spec.add_column(self, column)
                 else:
                     if engine_spec.supports_column_comments and \
                             column.comment is not None and \
                             col_existing["comment"] != column.comment:
                         # update column comment if different from current comment
+                        logger.info(
+                            f"Update comment on column `{column.name}` in "
+                            f"table `{table.name}`")
                         engine_spec.update_column_comment(
                             self, column.name, column.comment)
 
@@ -126,10 +132,13 @@ class BaseTableContext:
             cols_new = {col.name: col for col in table.columns}
             for column_name in cols_existing:
                 if column_name not in cols_new:
+                    logger.info(
+                        f"Remove redundant column `{column_name}` from "
+                        f"table `{table.name}`")
                     self.engine_context.engine_spec.drop_column(self, column_name)
         else:
             # table doesn't exist, create new
-            logging.debug(f"Create new table `{table.name}`")
+            logger.debug(f"Create new table `{table.name}`")
             metadata.create_all(tables=[table])
 
     def map_all(self, row_source: BaseRowSource) -> None:
