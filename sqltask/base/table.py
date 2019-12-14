@@ -1,7 +1,8 @@
 import logging
 from collections import UserDict
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Dict, List, Mapping, Optional, Sequence
+from typing import (TYPE_CHECKING, Any, Callable, Dict, List, Mapping,
+                    Optional, Sequence)
 
 import sqlalchemy as sa
 from sqlalchemy.schema import Column, Table
@@ -141,17 +142,37 @@ class BaseTableContext:
             logger.debug(f"Create new table `{table.name}`")
             metadata.create_all(tables=[table])
 
-    def map_all(self, row_source: BaseRowSource) -> None:
+    def map_all(self,
+                row_source: BaseRowSource,
+                mappings: Optional[Dict[str, str]] = None,
+                funcs: Optional[Dict[str, Callable[[Any], Any]]] = None,
+    ) -> None:
         """
         Convenience method for mapping all rows and columns from the input row source
-        to the output table in a one-to-one fashion.
+        to the output table in a one-to-one fashion. The optional arguments `mappings`
+        and `funcs` can be used to specify alternative column name mappings and
+        conversion functions.
 
         :param row_source: Input row source to map to the outout table.
+        :param mappings: mapping from target column name to source column name. If the
+               source and target names differ for one or several columns, these can be
+               specified here. Example: {"customer_name": "cust_n"} would map the values
+               in the source column "cust_n" to the target column "customer_name".
+        :param funcs: mapping from target column name to callable function. If the source
+               and target types differ for one or several columns, a callable can be
+               specified here. Typically this is needed when ingesting data from a CSV
+               file where the source data types are always strings, but might
+               need to be cast to int, float or Decimal. Example: {"customer_age": int}
+               would call `int()` on the source value.
         """
-        for row in row_source:
+        for input_row in row_source:
             output_row = self.get_new_row()
-            output_row.map_all(row)
-            output_row.append()
+            output_row.map_all(
+                input_row=input_row,
+                mappings=mappings,
+                funcs=funcs,
+                auto_append=True,
+            )
 
 
 class DqTableContext(BaseTableContext):
@@ -313,17 +334,34 @@ class BaseOutputRow(UserDict):
 
     def map_all(self,
                 input_row: Mapping[str, Any],
+                mappings: Optional[Dict[str, str]] = None,
+                funcs: Optional[Dict[str, Callable[[Any], Any]]] = None,
                 columns: Optional[Sequence[str]] = None,
                 auto_append: bool = False) -> None:
         """
         Convenience method for mapping column values one-to-one from an input row
-        to the output row.
+        to the output row. Will only map any unmapped columns, i.e. if the target
+        row has columns "customer_id" and "customer_name", and "customer_name" has
+        already been populated, only "customer_id" will be mapped.
 
-        :param input_row:
+        :param input_row: the input row to map values from.
+        :param mappings: mapping from target column name to source column name. If the
+               source and target names differ for one or several columns, these can be
+               specified here. Example: {"customer_name": "cust_n"} would map the values
+               in the source column "cust_n" to the target column "customer_name".
+        :param funcs: mapping from target column name to callable function. If the source
+               and target types differ for one or several columns, a callable can be
+               specified here. Typically this is needed when ingesting data from a CSV
+               file where the source data types are always strings, but might
+               need to be cast to int, float or Decimal. Example: {"customer_age": int}
+               would call `int()` on the source value.
         :param columns: A list of column names to map. If undefined, tries to map all
                unmapped columns in target row.
-        :param auto_append: Call append if the mapping operation is successful.
+        :param auto_append: Call append after mapping rows if the mapping operation
+               is successful.
         """
+        mappings = mappings or {}
+        funcs = funcs or {}
         if columns is None:
             target_columns = set([column.name for column in
                                   self.table_context.table.columns])
@@ -331,10 +369,15 @@ class BaseOutputRow(UserDict):
                 target_columns.remove(column)
         else:
             target_columns = set(columns)
-        for column in target_columns:
-            if column not in input_row:
-                raise Exception(f"Column not in input row: `{column}`")
-            self[column] = input_row[column]
+        for target_column in target_columns:
+            source_column = mappings.get(target_column, target_column)
+            if source_column not in input_row:
+                raise Exception(f"Column not in input row: `{source_column}`")
+            func = funcs.get(target_column)
+            if func is not None:
+                self[target_column] = func(input_row[source_column])
+            else:
+                self[target_column] = input_row[source_column]
         if auto_append:
             self.append()
 

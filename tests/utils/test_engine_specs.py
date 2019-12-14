@@ -8,14 +8,14 @@ from sqlalchemy.types import Date, DateTime, Float, Integer, String
 
 from sqltask.engine_specs.base import BaseEngineSpec
 from sqltask.utils.engine_specs import create_tmp_csv
-from tests.fixtures import get_table_context, populate_dummy_rows
+from tests.fixtures import get_row_source, get_table_context
 
 
 class TestEngineSpecs(TestCase):
     def test_csv_export(self):
         table_context = get_table_context()
         table_context.migrate_schema()
-        populate_dummy_rows(table_context)
+        table_context.map_all(get_row_source())
         file_path = create_tmp_csv(table_context)
         os.remove(f"{file_path}")
 
