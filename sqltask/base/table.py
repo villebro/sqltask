@@ -146,7 +146,7 @@ class BaseTableContext:
                 row_source: BaseRowSource,
                 mappings: Optional[Dict[str, str]] = None,
                 funcs: Optional[Dict[str, Callable[[Any], Any]]] = None,
-    ) -> None:
+                ) -> None:
         """
         Convenience method for mapping all rows and columns from the input row source
         to the output table in a one-to-one fashion. The optional arguments `mappings`
