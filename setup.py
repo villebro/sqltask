@@ -2,14 +2,12 @@ import io
 
 from setuptools import find_packages, setup
 
-from sqltask import __version__
-
 with io.open("README.md", "r", encoding="utf-8") as f:
     long_description = f.read()
 
 setup(
-    name='sqltask',
-    version=__version__,
+    name="sqltask",
+    version="0.6.4.2",
     description="ETL tool based on SqlAlchemy for building robust ETL pipelies with "
                 "high emphasis on high data quality",
     long_description=long_description,
