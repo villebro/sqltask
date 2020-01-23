@@ -12,18 +12,19 @@ class EngineContext:
     def __init__(self,
                  name: str,
                  url: str,
-                 metadata_kwargs: Optional[Dict[str, Any]] = None,
+                 engine_params: Optional[Dict[str, Any]] = None,
+                 metadata_params: Optional[Dict[str, Any]] = None,
                  ):
         self.name = name
-        self.engine = create_engine(url)
+        self.engine = create_engine(url, **engine_params)
         self.engine_spec = get_engine_spec(self.engine.name)
         url_params = self.engine_spec.get_url_params(self.engine.url)
         self.database, self.schema = url_params
-        self.metadata_kwargs = metadata_kwargs or {}
+        self.metadata_params = metadata_params or {}
         self.metadata = MetaData(
             bind=self.engine,
             schema=url_params.schema,
-            **self.metadata_kwargs,
+            **self.metadata_params,
         )
         if url_params.database and url_params.schema:
             url_str = url_params.database + "/" + url_params.schema
