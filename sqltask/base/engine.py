@@ -16,11 +16,12 @@ class EngineContext:
                  metadata_params: Optional[Dict[str, Any]] = None,
                  ):
         self.name = name
-        self.engine = create_engine(url, **engine_params)
+        self.engine_params = engine_params or {}
+        self.metadata_params = metadata_params or {}
+        self.engine = create_engine(url, **self.engine_params)
         self.engine_spec = get_engine_spec(self.engine.name)
         url_params = self.engine_spec.get_url_params(self.engine.url)
         self.database, self.schema = url_params
-        self.metadata_params = metadata_params or {}
         self.metadata = MetaData(
             bind=self.engine,
             schema=url_params.schema,
@@ -49,4 +50,4 @@ class EngineContext:
         """
         url = make_url(str(self.engine.url))
         self.engine_spec.modify_url(url, database=database, schema=schema)
-        return EngineContext(self.name, str(url), **self.metadata_kwargs)
+        return EngineContext(self.name, str(url), **self.metadata_params)

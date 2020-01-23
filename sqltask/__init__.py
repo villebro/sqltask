@@ -5,8 +5,6 @@ from sqltask.base.lookup_source import BaseLookupSource
 from sqltask.base.row_source import BaseRowSource
 from sqltask.base.table import BaseOutputRow, BaseTableContext
 
-__version__ = '0.6.3'
-
 # initialize logging
 logger = logging.getLogger(__name__)
 
