@@ -10,6 +10,7 @@ from sqlalchemy.types import String
 
 from sqltask.base import dq
 from sqltask.base.row_source import BaseRowSource
+from sqltask.utils.performance import is_developer_mode
 
 if TYPE_CHECKING:
     from sqltask.base.engine import EngineContext
@@ -324,7 +325,7 @@ class BaseOutputRow(UserDict):
 
     def __setitem__(self, key, value):
         # validate column value if table schema defined
-        if self.table_context.columns is not None:
+        if is_developer_mode and self.table_context.columns is not None:
             target_column = self.table_context.columns.get(key)
             if target_column is None:
                 raise KeyError(f"Column not found in target schema: {key}")
@@ -387,13 +388,13 @@ class BaseOutputRow(UserDict):
         should only be called once all cell values for the row have been fully populated,
         as any changes.
         """
-
         output_row = {}
-        for column in self.table_context.columns.values():
-            if column.name not in self:
-                raise Exception(f"No column `{column.name}` in output row for table "
-                                f"`{self.table_context.name}`")
-            output_row[column.name] = self[column.name]
+        if is_developer_mode:
+            for column in self.table_context.columns.values():
+                if column.name not in self:
+                    raise Exception(f"No column `{column.name}` in output row for table "
+                                    f"`{self.table_context.name}`")
+        output_row.update(self)
         self.table_context.output_rows.append(output_row)
 
 

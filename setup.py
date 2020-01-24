@@ -7,7 +7,7 @@ with io.open("README.md", "r", encoding="utf-8") as f:
 
 setup(
     name="sqltask",
-    version="0.6.4.2",
+    version="0.6.4.3",
     description="ETL tool based on SqlAlchemy for building robust ETL pipelies with "
                 "high emphasis on high data quality",
     long_description=long_description,

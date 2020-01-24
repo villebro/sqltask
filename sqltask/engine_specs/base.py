@@ -13,6 +13,7 @@ from sqlalchemy.sql.type_api import TypeEngine
 from sqltask.base.common import UrlParams
 from sqltask.base.table import BaseTableContext
 from sqltask.utils.engine_specs import get_escaped_string_value
+from sqltask.utils.performance import is_developer_mode
 
 logger = logging.getLogger(__name__)
 
@@ -255,6 +256,8 @@ class BaseEngineSpec:
         :param value: value to insert into a column of a database table
         :param column: The target column
         """
+        if not is_developer_mode:
+            return
         global VALID_COLUMN_TYPES
         name = column.name
         valid_types = VALID_COLUMN_TYPES.get(type(column.type))
