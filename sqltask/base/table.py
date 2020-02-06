@@ -388,7 +388,7 @@ class BaseOutputRow(UserDict):
         should only be called once all cell values for the row have been fully populated,
         as any changes.
         """
-        output_row = {}
+        output_row: Dict[str, Any] = {}
         if is_developer_mode:
             for column in self.table_context.columns.values():
                 if column.name not in self:
