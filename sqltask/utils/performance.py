@@ -1,9 +1,10 @@
-import logging
 import os
 
-logger = logging.getLogger(__name__)
 
+def is_developer_mode() -> bool:
+    """
+    Check if developer mode is activated.
 
-@property
-def is_developer_mode():
-    return os.getenv("SQLTASK_DEVELOPER_MODE", False)
+    :return: True if developer mode is active, otherwise False
+    """
+    return False if os.getenv("SQLTASK_DEVELOPER_MODE") is None else True

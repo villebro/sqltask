@@ -20,7 +20,8 @@ class TestEngineSpecs(TestCase):
         file_path = create_tmp_csv(table_context)
         os.remove(f"{file_path}")
 
-    def test_validate_column_types(self):
+    def test_validate_column_types_devmode(self):
+        # when in devmode, strict type checking is enforced
         with EnvironmentVarGuard() as env:
             env["SQLTASK_DEVELOPER_MODE"] = "1"
             validate = BaseEngineSpec.validate_column_value
@@ -45,3 +46,17 @@ class TestEngineSpecs(TestCase):
             self.assertRaises(ValueError, validate, "12345678901", str10_column)
             self.assertRaises(ValueError, validate, 12345, str_column)
             self.assertRaises(ValueError, validate, 12345.5, int_column)
+
+    def test_validate_column_types_non_devmode(self):
+        # when not in devmode, feeding incorrect types into columns should
+        # not raise exceptions
+        validate = BaseEngineSpec.validate_column_value
+        str10_column = Column("str10_col", String(10), nullable=False)
+        str_column = Column("str_col", String, nullable=False)
+        int_column = Column("int_col", Integer())
+        date_column = Column("float_col", Date(), nullable=False)
+        self.assertIsNone(validate(datetime.utcnow(), date_column))
+        self.assertIsNone(validate(None, str_column))
+        self.assertIsNone(validate("12345678901", str10_column))
+        self.assertIsNone(validate(12345, str_column))
+        self.assertIsNone(validate(12345.5, int_column))

@@ -256,7 +256,7 @@ class BaseEngineSpec:
         :param value: value to insert into a column of a database table
         :param column: The target column
         """
-        if not is_developer_mode:
+        if not is_developer_mode():
             return
         global VALID_COLUMN_TYPES
         name = column.name
