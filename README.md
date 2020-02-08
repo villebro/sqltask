@@ -58,8 +58,8 @@ on Read The Docs for further information.
 
 ## Developer instructions
 
-By default, `sqltask` performs minimal validity checking. However, `sqltask`
-does additional type checking and ensuring that column values are
-populated in accordance with schema specifications. This can be very
-helpful while developing new tasks. To enable these these checks,
-set the environment variable `SQLTASK_DEVELOPER_MODE=1`.
+By default, `sqltask` performs minimal validity checking of column values and
+types to ensure maximum performance. However, in developer mode,`sqltask` does
+additional type checking and ensuring that column values are populated in accordance
+with schema specifications. This can be very helpful while developing new tasks.
+To enable these these checks, set the environment variable `SQLTASK_DEVELOPER_MODE=1`.
