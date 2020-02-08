@@ -15,16 +15,14 @@
 # sys.path.insert(0, os.path.abspath('.'))
 import sphinx_rtd_theme
 
-from sqltask import __version__
-
 # -- Project information -----------------------------------------------------
 
 project = 'sqltask'
-copyright = '2019, Ville Brofeldt'
+copyright = '2020, Ville Brofeldt'
 author = 'Ville Brofeldt'
 
 # The full version, including alpha/beta/rc tags
-release = __version__
+# release = __version__
 
 
 # -- General configuration ---------------------------------------------------
